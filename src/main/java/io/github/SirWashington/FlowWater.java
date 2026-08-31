@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlockContainer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
@@ -23,8 +24,9 @@ public class FlowWater {
     }
 
     public static void flowWater(LevelAccessor world, BlockPos fluidPos, FluidState state) {
-
-
+        if (world.getBlockState(fluidPos).getBlock() instanceof LiquidBlockContainer) {
+            return;
+        }
 
         //Tick Counter
         if (fluidPos.getY() == worldMinY) {

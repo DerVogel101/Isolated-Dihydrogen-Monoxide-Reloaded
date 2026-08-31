@@ -74,7 +74,7 @@ public class CachedWater {
             return state.getValue(WATER_LEVEL);
 
         FluidState fluidstate = state.getFluidState();
-        if (fluidstate == Fluids.EMPTY.defaultFluidState())
+        if (fluidstate == Fluids.EMPTY.defaultFluidState() || state.is(Blocks.LAVA))
             return (byte) -1;
 
         int waterLevel;

@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -31,8 +32,12 @@ public class BucketMechanics {
             BlockPos blockPos = blockHitResult.getBlockPos();
             Direction direction = blockHitResult.getDirection();
             BlockPos blockPos2 = blockPos.relative(direction);
-            NonCachedWater.addWater(bucketFillLevel, blockPos2, level);
-            itemStack.set(ModDataComponentTypes.BUCKET_FILL_LEVEL, newBucketFillLevel);
+            BlockState state = level.getBlockState(blockPos2);
+            if ((state.isAir() || state.is(Blocks.WATER)) && NonCachedWater.addWater(bucketFillLevel, blockPos2, level)) {
+                itemStack.set(ModDataComponentTypes.BUCKET_FILL_LEVEL, newBucketFillLevel);
+            } else {
+                return false;
+            }
         }
         return true;
     }
@@ -71,6 +76,9 @@ public class BucketMechanics {
             BlockPos blockPos = blockHitResult.getBlockPos();
             Direction direction = blockHitResult.getDirection();
             BlockPos blockPos2 = blockPos.relative(direction);
+            if (!level.getBlockState(blockPos2).is(Blocks.WATER)) {
+                return false;
+            }
             int oldVolume = NonCachedWater.getWaterLevel(blockPos2, level);
             int newVolume = 0;
             int newBucketFillLevel;
