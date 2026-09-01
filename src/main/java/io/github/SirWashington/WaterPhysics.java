@@ -23,6 +23,7 @@ public class WaterPhysics implements ModInitializer {
         ModFluids.initialize();
         ModBlocks.initialize();
         ModItems.initialize();
+        FiniteWaterPhysics.initialize();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("waterlevel")

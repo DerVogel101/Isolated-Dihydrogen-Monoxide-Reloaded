@@ -3,7 +3,9 @@ package io.github.SirWashington.features;
 import io.github.SirWashington.WaterPhysicsConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -32,6 +34,9 @@ public final class FiniteWaterMathSelfTest {
         verifyPistonPressureLimits();
         verifyPistonPressureDoesNotLoadChunks();
         verifyPistonPressureAvoidsOccupiedCells();
+        verifyCurrentStrength();
+        verifyPistonCurrentDirections();
+        verifyFiniteWaterEntityCompatibilityMixin();
         verifyPistonPressureConfig();
     }
 
@@ -278,6 +283,107 @@ public final class FiniteWaterMathSelfTest {
         }
     }
 
+    private static void verifyCurrentStrength() {
+        if (Math.abs(FiniteWaterPhysics.verticalCurrentStrength(8) - 0.06D) > 1.0E-9D
+                || Math.abs(FiniteWaterPhysics.verticalCurrentStrength(-8) + 0.039D) > 1.0E-9D
+                || Math.abs(FiniteWaterPhysics.verticalCurrentStrength(4) - 0.03D) > 1.0E-9D
+                || FiniteWaterPhysics.verticalCurrentStrength(0) != 0.0D) {
+            throw new AssertionError("Vertical current strength does not scale with transferred units");
+        }
+        if (FiniteWaterPhysics.combineVerticalCurrents(4, 8) != 8
+                || FiniteWaterPhysics.combineVerticalCurrents(-4, -8) != -8
+                || FiniteWaterPhysics.combineVerticalCurrents(8, -4) != 4
+                || FiniteWaterPhysics.combineVerticalCurrents(4, -8) != -4) {
+            throw new AssertionError("Overlapping vertical current cells combine incorrectly");
+        }
+        Vec3 horizontalStrength = FiniteWaterPhysics.currentStrength(new Vec3(8.0D, 0.0D, -4.0D));
+        if (Math.abs(horizontalStrength.x() - 0.06D) > 1.0E-9D
+                || horizontalStrength.y() != 0.0D
+                || Math.abs(horizontalStrength.z() + 0.03D) > 1.0E-9D) {
+            throw new AssertionError("Horizontal current strength does not scale with transferred units");
+        }
+        Vec3 combined = FiniteWaterPhysics.combineCurrentUnits(
+                new Vec3(8.0D, 0.0D, 0.0D), new Vec3(-4.0D, 8.0D, 0.0D)
+        );
+        if (!combined.equals(new Vec3(4.0D, 8.0D, 0.0D))) {
+            throw new AssertionError("Overlapping three-dimensional currents combine incorrectly");
+        }
+    }
+
+    private static void verifyPistonCurrentDirections() {
+        BlockPos start = BlockPos.ZERO;
+        Map<BlockPos, Integer> upwardWorld = Map.of(start, 8, start.above(), 0);
+        Map<BlockPos, Vec3> upwardTransfers = new HashMap<>();
+        Map<BlockPos, Integer> upwardPlan = SpecialFlow.planPush(
+                List.of(start), Direction.UP, levelAt(upwardWorld), 8, 64,
+                pos -> true, Set.of(start), upwardTransfers
+        );
+        if (upwardPlan == null
+                || upwardTransfers.getOrDefault(start.above(), Vec3.ZERO).y() != 8.0D) {
+            throw new AssertionError("Upward piston transfer did not retain its current direction");
+        }
+
+        Map<BlockPos, Integer> downwardWorld = Map.of(start, 8, start.below(), 0);
+        Map<BlockPos, Vec3> downwardTransfers = new HashMap<>();
+        Map<BlockPos, Integer> downwardPlan = SpecialFlow.planPush(
+                List.of(start), Direction.DOWN, levelAt(downwardWorld), 8, 64,
+                pos -> true, Set.of(start), downwardTransfers
+        );
+        if (downwardPlan == null
+                || downwardTransfers.getOrDefault(start.below(), Vec3.ZERO).y() != -8.0D) {
+            throw new AssertionError("Downward piston transfer did not retain its current direction");
+        }
+
+        BlockPos columnMiddle = start.above();
+        BlockPos columnOutlet = start.above(2);
+        Map<BlockPos, Vec3> columnTransfers = new HashMap<>();
+        Map<BlockPos, Integer> columnPlan = SpecialFlow.planPush(
+                List.of(start), Direction.UP,
+                levelAt(Map.of(start, 8, columnMiddle, 8, columnOutlet, 0)), 8, 64,
+                pos -> true, Set.of(start), columnTransfers
+        );
+        if (columnPlan == null
+                || columnTransfers.getOrDefault(start, Vec3.ZERO).y() != 8.0D
+                || columnTransfers.getOrDefault(columnMiddle, Vec3.ZERO).y() != 8.0D
+                || columnTransfers.getOrDefault(columnOutlet, Vec3.ZERO).y() != 8.0D) {
+            throw new AssertionError("Vertical current did not cover the full pressure path");
+        }
+
+        BlockPos corner = start.east();
+        BlockPos cornerOutlet = corner.above();
+        Map<BlockPos, Vec3> cornerTransfers = new HashMap<>();
+        Map<BlockPos, Integer> cornerPlan = SpecialFlow.planPush(
+                List.of(start), Direction.EAST,
+                levelAt(Map.of(start, 8, corner, 8, cornerOutlet, 0)), 8, 64,
+                pos -> true, Set.of(start), cornerTransfers
+        );
+        if (cornerPlan == null
+                || !cornerTransfers.getOrDefault(corner, Vec3.ZERO).equals(new Vec3(8.0D, 8.0D, 0.0D))
+                || cornerTransfers.getOrDefault(cornerOutlet, Vec3.ZERO).y() != 8.0D) {
+            throw new AssertionError("Current did not follow a turning pressure path");
+        }
+
+        Map<BlockPos, Vec3> horizontalTransfers = new HashMap<>();
+        Map<BlockPos, Integer> horizontalPlan = SpecialFlow.planPush(
+                List.of(start), Direction.EAST, levelAt(Map.of(start, 8, start.east(), 0)), 8, 64,
+                pos -> true, Set.of(start), horizontalTransfers
+        );
+        if (horizontalPlan == null
+                || !horizontalTransfers.getOrDefault(start.east(), Vec3.ZERO)
+                .equals(new Vec3(8.0D, 0.0D, 0.0D))) {
+            throw new AssertionError("Horizontal piston transfer did not retain its current direction");
+        }
+
+        Map<BlockPos, Vec3> failedTransfers = new HashMap<>();
+        Map<BlockPos, Integer> failedPlan = SpecialFlow.planPush(
+                List.of(start), Direction.UP, levelAt(Map.of(start, 8, start.above(), 7)), 8, 64,
+                pos -> true, Set.of(start), failedTransfers
+        );
+        if (failedPlan != null || !failedTransfers.isEmpty()) {
+            throw new AssertionError("Failed piston plan leaked a vertical current");
+        }
+    }
+
     private static void verifyPistonPressureConfig() throws Exception {
         Path directory = Files.createTempDirectory("immersivefluids-config-test");
         Path config = directory.resolve("immersivefluids.properties");
@@ -300,6 +406,20 @@ public final class FiniteWaterMathSelfTest {
             Files.deleteIfExists(config);
             Files.deleteIfExists(directory);
         }
+    }
+
+    private static void verifyFiniteWaterEntityCompatibilityMixin() throws Exception {
+        String resource = "waterphysics.mixins.json";
+        try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) {
+                throw new AssertionError("Missing Mixin configuration: " + resource);
+            }
+            String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            if (!json.contains("\"MixinEntity\"")) {
+                throw new AssertionError("Finite-water entity compatibility Mixin is not configured");
+            }
+        }
+        Class.forName("io.github.SirWashington.mixin.MixinEntity");
     }
 
     private static Map<BlockPos, Integer> plan(List<BlockPos> starts, Map<BlockPos, Integer> world,
