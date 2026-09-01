@@ -14,6 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Mixin(PistonBaseBlock.class)
 public class MixinPistonBaseBlock {
@@ -33,7 +35,13 @@ public class MixinPistonBaseBlock {
                 .filter(pos -> ModFluids.isFiniteWater(level.getFluidState(pos).getType()))
                 .toList();
 
-        if (!SpecialFlow.pushWater((ServerLevel) level, waterBlocks, direction)) {
+        Set<BlockPos> pistonOccupiedPositions = new HashSet<>();
+        pistonOccupiedPositions.add(blockPos.relative(direction));
+        resolver.getToPush().forEach(pos -> pistonOccupiedPositions.add(pos.relative(direction)));
+
+        if (!SpecialFlow.pushWater(
+                (ServerLevel) level, waterBlocks, direction, pistonOccupiedPositions
+        )) {
             cir.setReturnValue(false);
         }
     }
