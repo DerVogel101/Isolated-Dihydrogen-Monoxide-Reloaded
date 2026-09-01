@@ -2,15 +2,8 @@
   "required": true,
   "minVersion": "0.8",
   "package": "io.github.SirWashington.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "StillWaterPropertiesMixin",
-    "BucketMixin",
-    "FlowingLavaMixin",
-    "FlowingMixin",
-    "LavaFluidMixin",
-    "ServerWorldMixin",
-    "WaterFluidMixin",
     "MixinPistonBaseBlock"
   ],
   "injectors": {

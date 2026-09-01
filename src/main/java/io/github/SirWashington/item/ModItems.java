@@ -1,29 +1,37 @@
 package io.github.SirWashington.item;
 
 
-import io.github.SirWashington.WaterPhysics;
-import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroupEntries;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import io.github.SirWashington.component.ModDataComponentTypes;
+import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.*;
+
+import java.util.function.Function;
 
 
 public class ModItems {
 
-    public static final Item PRECISION_BUCKET = registerItem("precision_bucket", new PrecisionBucketItem(new Item.Properties().stacksTo(1)));
+    public static final Item PRECISION_BUCKET = register(
+            ModItemIds.PRECISION_BUCKET,
+            PrecisionBucketItem::new,
+            new Item.Properties().stacksTo(1).component(ModDataComponentTypes.BUCKET_FILL_LEVEL, 0)
+    );
+    public static final Item FINITE_WATER_BUCKET = register(
+            ModItemIds.FINITE_WATER_BUCKET,
+            FiniteWaterBucketItem::new,
+            new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)
+    );
 
-    private static void addItemsToCreativeModeTab(FabricItemGroupEntries entries) {
-        entries.prepend(PRECISION_BUCKET);
-    }
-    private static Item registerItem(String name, Item item) {
-        return Registry.register(BuiltInRegistries.ITEM, ResourceLocation.fromNamespaceAndPath(WaterPhysics.MODID, name), item);
+    private static Item register(ResourceKey<Item> key, Function<Item.Properties, Item> factory, Item.Properties properties) {
+        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(properties.setId(key)));
     }
 
-    public static void RegisterModItems() {
-        ItemGroupEvents.modifyEntriesEvent(CreativeModeTabs.COMBAT).register(ModItems::addItemsToCreativeModeTab);
+    public static void initialize() {
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register(entries -> {
+            entries.accept(PRECISION_BUCKET);
+            entries.accept(FINITE_WATER_BUCKET);
+        });
     }
-
 }

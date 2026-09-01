@@ -1,23 +1,25 @@
 package io.github.SirWashington;
 
-import io.github.SirWashington.component.ModDataComponentTypes;
-import io.github.SirWashington.nbtUtil.DataComponentUtils;
+import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.resources.ResourceLocation;
-
-import static io.github.SirWashington.item.ModItems.PRECISION_BUCKET;
+import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry;
+import net.minecraft.client.color.block.BlockTintSources;
+import net.minecraft.client.renderer.block.FluidModel;
+import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.resources.Identifier;
 
 public class WaterPhysicsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        registerItemProperties();
-    }
-
-    public static void registerItemProperties() {
-        // For versions before 1.21, replace 'Identifier.ofVanilla' with 'new Identifier'.
-        ItemProperties.register(PRECISION_BUCKET, ResourceLocation.parse("bucketlevel"), (itemStack, clientWorld, livingEntity, seed) -> {
-            return DataComponentUtils.getOrCreateComponent(ModDataComponentTypes.BUCKET_FILL_LEVEL, itemStack) / 8f;
-        });
+        FluidRenderingRegistry.register(
+                ModFluids.FINITE_WATER,
+                ModFluids.FLOWING_FINITE_WATER,
+                new FluidModel.Unbaked(
+                        new Material(Identifier.withDefaultNamespace("block/water_still")),
+                        new Material(Identifier.withDefaultNamespace("block/water_flow")),
+                        new Material(Identifier.withDefaultNamespace("block/water_overlay")),
+                        BlockTintSources.water()
+                )
+        );
     }
 }

@@ -1,3 +1,5 @@
 {
-  "item.immersivefluids.precision_bucket": "Precision Bucket"
+  "item.immersivefluids.precision_bucket": "Precision Bucket",
+  "item.immersivefluids.finite_water_bucket": "Finite Water Bucket",
+  "block.immersivefluids.finite_water": "Finite Water"
 }

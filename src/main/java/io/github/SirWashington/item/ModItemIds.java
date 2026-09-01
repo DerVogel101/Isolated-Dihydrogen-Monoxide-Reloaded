@@ -1,0 +1,19 @@
+package io.github.SirWashington.item;
+
+import io.github.SirWashington.WaterPhysics;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.Item;
+
+public final class ModItemIds {
+    public static final ResourceKey<Item> PRECISION_BUCKET = create("precision_bucket");
+    public static final ResourceKey<Item> FINITE_WATER_BUCKET = create("finite_water_bucket");
+
+    private ModItemIds() {
+    }
+
+    private static ResourceKey<Item> create(String path) {
+        return ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, path));
+    }
+}

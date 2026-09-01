@@ -31,6 +31,7 @@ bin/
 # fabric
 
 run/
+logs/
 radle-version/caches/8.5/executionHistory/executionHistory.lock
 radle-version/caches/8.5/file-changes/last-build.bin
 radle-version/caches/8.5/fileContent/fileContent.lock

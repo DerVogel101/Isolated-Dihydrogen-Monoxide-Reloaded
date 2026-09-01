@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "immersivefluids",
-  "version": "0.1.2.5",
+  "version": "${version}",
 
   "name": "Immersive Fluids",
   "description": "Physics based behaviour for your minecraft fluids.",
@@ -12,12 +12,12 @@
     "CoolMineman"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/DerVogel101/Isolated-Dihydrogen-Monoxide-Reloaded",
+    "sources": "https://github.com/DerVogel101/Isolated-Dihydrogen-Monoxide-Reloaded"
   },
 
   "license": "LGPL-3.0",
-  "icon": "assets/waterphysics/icon.png",
+  "icon": "assets/immersivefluids/icon.png",
 
   "environment": "*",
   "entrypoints": {
@@ -33,10 +33,10 @@
   ],
 
   "depends": {
-    "fabricloader": ">=0.16.9",
-    "fabric": "*",
-    "minecraft": "1.21.1",
-    "fabric-api": "*"
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "fabric-api": "*",
+    "java": ">=25"
   },
   "suggests": {
     "lithium": "*"
