@@ -27,7 +27,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
@@ -118,11 +117,6 @@ public abstract class FiniteWaterFluid extends FlowingFluid {
     @Override
     public Optional<SoundEvent> getPickupSound() {
         return Optional.of(SoundEvents.BUCKET_FILL);
-    }
-
-    @Override
-    public Vec3 getFlow(BlockGetter level, BlockPos pos, FluidState state) {
-        return Vec3.ZERO;
     }
 
     @Override
