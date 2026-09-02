@@ -9,6 +9,20 @@ group = project.maven_group
 def expandedModVersion = version
 def licenseArchiveName = project.archives_base_name
 
+repositories {
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'CurseForge'
+				url = 'https://www.cursemaven.com'
+			}
+		}
+		filter {
+			includeGroup 'curse.maven'
+		}
+	}
+}
+
 loom {
 	splitEnvironmentSourceSets()
 
@@ -34,6 +48,8 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	implementation "curse.maven:framework-549225:${project.framework_file_id}"
+	testRuntimeOnly "com.electronwill.night-config:core:3.8.3"
 
 	//modImplementation "carpet:fabric-carpet:${project.minecraft_version}-${project.carpet_core_version}"
 }

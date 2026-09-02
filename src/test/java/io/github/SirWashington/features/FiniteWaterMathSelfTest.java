@@ -1,13 +1,16 @@
 package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
+import com.mrcrayfish.framework.api.config.ConfigType;
+import com.mrcrayfish.framework.api.config.FrameworkConfig;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +19,8 @@ import java.util.function.ToIntFunction;
 
 public final class FiniteWaterMathSelfTest {
     public static void main(String[] args) throws Exception {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
         verifyAllHorizontalCombinations();
         verifySettledWaterStaysSettled();
         verifyDistribution();
@@ -36,6 +41,7 @@ public final class FiniteWaterMathSelfTest {
         verifyPistonPressureAvoidsOccupiedCells();
         verifyCurrentStrength();
         verifyPistonCurrentDirections();
+        verifyFiniteWaterContactFluids();
         verifyFiniteWaterEntityCompatibilityMixin();
         verifyPistonPressureConfig();
     }
@@ -97,7 +103,7 @@ public final class FiniteWaterMathSelfTest {
         BlockPos second = first.east();
         Map<BlockPos, Integer> world = Map.of(first, 8, second, 8);
         Map<BlockPos, Integer> plan = SpecialFlow.planPush(
-                List.of(first, second), Direction.EAST, pos -> world.getOrDefault(pos, 0)
+                List.of(first, second), Direction.EAST, pos -> world.getOrDefault(pos, 0), 8, 64, pos -> true
         );
         if (plan == null
                 || plan.values().stream().mapToInt(Integer::intValue).sum() != 16
@@ -113,7 +119,7 @@ public final class FiniteWaterMathSelfTest {
         BlockPos second = first.east();
         Map<BlockPos, Integer> world = Map.of(water, 8, first, 4, first.above(), -1);
         Map<BlockPos, Integer> plan = SpecialFlow.planPush(
-                List.of(water), Direction.EAST, pos -> world.getOrDefault(pos, 0)
+                List.of(water), Direction.EAST, pos -> world.getOrDefault(pos, 0), 8, 64, pos -> true
         );
         if (plan == null || plan.getOrDefault(first, -1) != 8 || plan.getOrDefault(second, -1) != 4) {
             throw new AssertionError("Piston plan did not continue in the preferred direction");
@@ -124,7 +130,7 @@ public final class FiniteWaterMathSelfTest {
         BlockPos water = BlockPos.ZERO;
         Map<BlockPos, Integer> plan = SpecialFlow.planPush(
                 List.of(water), Direction.EAST,
-                pos -> pos.equals(water) ? 8 : pos.getX() > 0 ? -1 : 0
+                pos -> pos.equals(water) ? 8 : pos.getX() > 0 ? -1 : 0, 8, 64, pos -> true
         );
         if (plan == null || plan.getOrDefault(water.south(), -1) != 8) {
             throw new AssertionError("Piston plan did not use the clockwise side fallback");
@@ -136,7 +142,7 @@ public final class FiniteWaterMathSelfTest {
         BlockPos airBehindBarrier = water.east().east();
         Map<BlockPos, Integer> plan = SpecialFlow.planPush(
                 List.of(water), Direction.EAST,
-                pos -> pos.equals(water) ? 8 : pos.equals(airBehindBarrier) ? 0 : -1
+                pos -> pos.equals(water) ? 8 : pos.equals(airBehindBarrier) ? 0 : -1, 8, 64, pos -> true
         );
         if (plan != null) {
             throw new AssertionError("Piston plan crossed a solid barrier");
@@ -146,7 +152,7 @@ public final class FiniteWaterMathSelfTest {
     private static void verifyBlockedPiston() {
         BlockPos water = BlockPos.ZERO;
         Map<BlockPos, Integer> plan = SpecialFlow.planPush(
-                List.of(water), Direction.EAST, pos -> pos.equals(water) ? 8 : -1
+                List.of(water), Direction.EAST, pos -> pos.equals(water) ? 8 : -1, 8, 64, pos -> true
         );
         if (plan != null) {
             throw new AssertionError("Fully blocked piston plan should fail");
@@ -385,26 +391,40 @@ public final class FiniteWaterMathSelfTest {
     }
 
     private static void verifyPistonPressureConfig() throws Exception {
-        Path directory = Files.createTempDirectory("immersivefluids-config-test");
-        Path config = directory.resolve("immersivefluids.properties");
-        try {
-            WaterPhysicsConfig.load(directory);
-            if (!Files.isRegularFile(config)
-                    || WaterPhysicsConfig.pistonPressureMaxDepth() != 8
-                    || WaterPhysicsConfig.pistonPressureMaxVisitedWaterCells() != 64) {
-                throw new AssertionError("Default piston-pressure config was not created");
-            }
+        var maxDepth = WaterPhysicsConfig.SERVER.pistonPressure.maxDepth;
+        var maxVisited = WaterPhysicsConfig.SERVER.pistonPressure.maxVisitedWaterCells;
+        FrameworkConfig config = WaterPhysicsConfig.class.getField("SERVER").getAnnotation(FrameworkConfig.class);
+        if (config == null || !config.id().equals("immersivefluids") || !config.name().equals("server")
+                || config.type() != ConfigType.SERVER
+                || maxDepth.getDefaultValue() != 8 || !maxDepth.isValid(1) || maxDepth.isValid(0)
+                || maxVisited.getDefaultValue() != 64 || !maxVisited.isValid(1) || maxVisited.isValid(0)) {
+            throw new AssertionError("Framework piston-pressure config is invalid");
+        }
 
-            Files.writeString(config, "piston_pressure.max_depth=3\n"
-                    + "piston_pressure.max_visited_water_cells=5\n");
-            WaterPhysicsConfig.load(directory);
-            if (WaterPhysicsConfig.pistonPressureMaxDepth() != 3
-                    || WaterPhysicsConfig.pistonPressureMaxVisitedWaterCells() != 5) {
-                throw new AssertionError("Custom piston-pressure limits were not loaded");
+        try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream("fabric.mod.json")) {
+            if (stream == null) {
+                throw new AssertionError("Missing Fabric metadata");
             }
-        } finally {
-            Files.deleteIfExists(config);
-            Files.deleteIfExists(directory);
+            String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            int derVogel = json.indexOf("\"DerVogel101\"");
+            if (!json.contains("io.github.SirWashington.WaterPhysicsConfig")
+                    || !json.contains("\"configured\"") || !json.contains("\"modmenu\"")
+                    || derVogel < 0 || derVogel > json.indexOf("\"SirWashington\"")) {
+                throw new AssertionError("Fabric metadata integration or author order is invalid");
+            }
+        }
+    }
+
+    private static void verifyFiniteWaterContactFluids() {
+        if (!FiniteWaterPhysics.isVanillaWater(Fluids.WATER)
+                || !FiniteWaterPhysics.isVanillaWater(Fluids.FLOWING_WATER)
+                || FiniteWaterPhysics.isVanillaWater(Fluids.LAVA)
+                || !FiniteWaterPhysics.isVanillaLava(Fluids.LAVA)
+                || !FiniteWaterPhysics.isVanillaLava(Fluids.FLOWING_LAVA)
+                || FiniteWaterPhysics.isVanillaLava(Fluids.WATER)
+                || FiniteWaterPhysics.isVanillaWater(Fluids.EMPTY)
+                || FiniteWaterPhysics.isVanillaLava(Fluids.EMPTY)) {
+            throw new AssertionError("Finite-water contact fluid classification is invalid");
         }
     }
 

@@ -4,15 +4,20 @@ import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -134,11 +139,11 @@ public final class FiniteWaterPhysics {
             return;
         }
 
-        BlockPos below = pos.below();
-        if (level.getBlockState(below).is(Blocks.LAVA)) {
-            level.setBlock(below, Blocks.OBSIDIAN.defaultBlockState(), Block.UPDATE_ALL);
+        if (disappearsOnVanillaFluidContact(level, pos)) {
+            return;
         }
 
+        BlockPos below = pos.below();
         int belowLevel = getWaterLevel(level, below);
         if (belowLevel >= 0 && belowLevel < MAX_LEVEL) {
             int moved = Math.min(center, MAX_LEVEL - belowLevel);
@@ -152,6 +157,49 @@ public final class FiniteWaterPhysics {
             return;
         }
         equalizeHorizontally(level, pos, center);
+    }
+
+    private static boolean disappearsOnVanillaFluidContact(ServerLevel level, BlockPos pos) {
+        boolean touchesWater = false;
+        for (Direction direction : Direction.values()) {
+            BlockPos neighbor = pos.relative(direction);
+            if (!level.hasChunkAt(neighbor)) {
+                continue;
+            }
+            Fluid fluid = level.getFluidState(neighbor).getType();
+            if (isVanillaLava(fluid)) {
+                playVanishingEffect(level, pos);
+                setWaterLevel(level, pos, 0);
+                return true;
+            }
+            touchesWater |= isVanillaWater(fluid);
+        }
+        if (touchesWater) {
+            setWaterLevel(level, pos, 0);
+            return true;
+        }
+        return false;
+    }
+
+    private static void playVanishingEffect(ServerLevel level, BlockPos pos) {
+        var random = level.getRandom();
+        level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS,
+                0.5F, 2.6F + (random.nextFloat() - random.nextFloat()) * 0.8F);
+        for (int i = 0; i < 8; i++) {
+            level.sendParticles(ParticleTypes.LARGE_SMOKE,
+                    pos.getX() + random.nextFloat(),
+                    pos.getY() + random.nextFloat(),
+                    pos.getZ() + random.nextFloat(),
+                    1, 0.0D, 0.0D, 0.0D, 0.0D);
+        }
+    }
+
+    static boolean isVanillaWater(Fluid fluid) {
+        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
+    }
+
+    static boolean isVanillaLava(Fluid fluid) {
+        return fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA;
     }
 
     static void applyCurrent(ServerLevel level, BlockPos pos, Vec3 units) {

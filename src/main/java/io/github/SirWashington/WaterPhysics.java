@@ -7,7 +7,6 @@ import io.github.SirWashington.fluid.ModFluids;
 import io.github.SirWashington.item.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.network.chat.Component;
@@ -18,7 +17,6 @@ public class WaterPhysics implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        WaterPhysicsConfig.load(FabricLoader.getInstance().getConfigDir());
         ModDataComponentTypes.registerDataComponentTypes();
         ModFluids.initialize();
         ModBlocks.initialize();
