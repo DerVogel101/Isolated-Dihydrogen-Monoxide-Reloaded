@@ -35,7 +35,7 @@ public class PrecisionBucketItem extends Item {
         BlockPos clicked = useOnContext.getClickedPos();
         boolean pickingUp = useOnContext.getPlayer() != null && useOnContext.getPlayer().isCrouching();
         BlockPos adjacent = clicked.relative(useOnContext.getClickedFace());
-        BlockPos target = FiniteWaterPhysics.getWaterLevel(level, clicked) > 0 ? clicked : adjacent;
+        BlockPos target = FiniteWaterPhysics.getWaterLevel(level, clicked) >= 0 ? clicked : adjacent;
         int targetLevel = FiniteWaterPhysics.getWaterLevel(level, target);
 
         if (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel) || targetLevel < 0) {

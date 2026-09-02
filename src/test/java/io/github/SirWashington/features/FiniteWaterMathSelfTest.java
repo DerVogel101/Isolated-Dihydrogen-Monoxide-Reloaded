@@ -6,7 +6,12 @@ import com.mrcrayfish.framework.api.config.FrameworkConfig;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.world.level.EmptyBlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FlowerPotBlock;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 
@@ -42,6 +47,7 @@ public final class FiniteWaterMathSelfTest {
         verifyCurrentStrength();
         verifyPistonCurrentDirections();
         verifyFiniteWaterContactFluids();
+        verifyFiniteWaterloggedPlantCoverage();
         verifyFiniteWaterEntityCompatibilityMixin();
         verifyPistonPressureConfig();
     }
@@ -428,6 +434,55 @@ public final class FiniteWaterMathSelfTest {
         }
     }
 
+    private static void verifyFiniteWaterloggedPlantCoverage() {
+        boolean supportsFullSolidBlock = BuiltInRegistries.BLOCK.stream()
+                .filter(FiniteWaterloggedPlants::supports)
+                .anyMatch(block -> Block.isShapeFullBlock(block.defaultBlockState()
+                        .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)));
+        if (supportsFullSolidBlock) {
+            throw new AssertionError("Full solid blocks must not hold finite water");
+        }
+        List<Block> expectedPlants = List.of(
+                Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.LARGE_FERN, Blocks.SUNFLOWER,
+                Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS,
+                Blocks.TORCHFLOWER_CROP, Blocks.PITCHER_CROP, Blocks.PITCHER_PLANT,
+                Blocks.NETHER_WART, Blocks.SWEET_BERRY_BUSH,
+                Blocks.SUGAR_CANE, Blocks.BAMBOO, Blocks.BAMBOO_SAPLING, Blocks.CACTUS,
+                Blocks.CACTUS_FLOWER, Blocks.CHORUS_PLANT,
+                Blocks.VINE, Blocks.CAVE_VINES, Blocks.WEEPING_VINES, Blocks.TWISTING_VINES,
+                Blocks.KELP, Blocks.KELP_PLANT, Blocks.SEAGRASS, Blocks.TALL_SEAGRASS,
+                Blocks.SEA_PICKLE, Blocks.COCOA, Blocks.BIG_DRIPLEAF, Blocks.SMALL_DRIPLEAF,
+                Blocks.SPORE_BLOSSOM, Blocks.BRAIN_CORAL, Blocks.BRAIN_CORAL_FAN,
+                Blocks.BRAIN_CORAL_WALL_FAN, Blocks.MANGROVE_PROPAGULE,
+                Blocks.HANGING_ROOTS, Blocks.PALE_HANGING_MOSS, Blocks.GLOW_LICHEN,
+                Blocks.PINK_PETALS, Blocks.WILDFLOWERS, Blocks.LEAF_LITTER,
+                Blocks.FIREFLY_BUSH, Blocks.MOSS_CARPET, Blocks.PALE_MOSS_CARPET
+        );
+        if (expectedPlants.stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || Blocks.CARPET.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || BuiltInRegistries.BLOCK.stream().filter(block -> block instanceof FlowerPotBlock)
+                .anyMatch(block -> !FiniteWaterloggedPlants.supports(block))) {
+            throw new AssertionError("A vanilla plant or crop family is missing finite-water support");
+        }
+        if (FiniteWaterloggedPlants.supports(Blocks.AIR)
+                || FiniteWaterloggedPlants.supports(Blocks.STONE)
+                || FiniteWaterloggedPlants.supports(Blocks.MOSS_BLOCK)
+                || FiniteWaterloggedPlants.supports(Blocks.PALE_MOSS_BLOCK)
+                || FiniteWaterloggedPlants.supports(Blocks.HAY_BLOCK)
+                || FiniteWaterloggedPlants.supports(Blocks.OAK_LEAVES)
+                || FiniteWaterloggedPlants.supports(Blocks.MANGROVE_ROOTS)
+                || FiniteWaterloggedPlants.supports(Blocks.CHORUS_FLOWER)
+                || FiniteWaterloggedPlants.supports(Blocks.OAK_DOOR)
+                || FiniteWaterloggedPlants.supports(Blocks.OAK_STAIRS)) {
+            throw new AssertionError("Finite-water plant support leaked into unrelated block families");
+        }
+        if (FiniteWaterloggedPlants.LEVEL.getPossibleValues().size() != 9
+                || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(0)
+                || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(8)) {
+            throw new AssertionError("Finite-water plant levels must cover 0 through 8");
+        }
+    }
+
     private static void verifyFiniteWaterEntityCompatibilityMixin() throws Exception {
         String resource = "waterphysics.mixins.json";
         try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream(resource)) {
@@ -435,11 +490,23 @@ public final class FiniteWaterMathSelfTest {
                 throw new AssertionError("Missing Mixin configuration: " + resource);
             }
             String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            if (!json.contains("\"MixinEntity\"")) {
-                throw new AssertionError("Finite-water entity compatibility Mixin is not configured");
+            if (!json.contains("\"MixinAquaticPlantBlock\"")
+                    || !json.contains("\"MixinBlockStateBase\"")
+                    || !json.contains("\"MixinClientLevel\"")
+                    || !json.contains("\"MixinMushroomBlock\"")
+                    || !json.contains("\"MixinNetherFungusBlock\"")
+                    || !json.contains("\"MixinTreeGrower\"")
+                    || !json.contains("\"MixinEntity\"")
+                    || !json.contains("\"MixinLevel\"")
+                    || !json.contains("\"MixinStateDefinitionBuilder\"")) {
+                throw new AssertionError("Finite-water compatibility Mixins are not configured");
             }
         }
+        Class.forName("io.github.SirWashington.mixin.MixinAquaticPlantBlock");
+        Class.forName("io.github.SirWashington.mixin.MixinBlockStateBase");
         Class.forName("io.github.SirWashington.mixin.MixinEntity");
+        Class.forName("io.github.SirWashington.mixin.MixinLevel");
+        Class.forName("io.github.SirWashington.mixin.MixinStateDefinitionBuilder");
     }
 
     private static Map<BlockPos, Integer> plan(List<BlockPos> starts, Map<BlockPos, Integer> world,

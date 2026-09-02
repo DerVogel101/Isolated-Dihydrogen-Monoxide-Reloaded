@@ -63,7 +63,10 @@ public final class FiniteWaterPhysics {
             return 0;
         }
         FluidState fluidState = state.getFluidState();
-        return ModFluids.isFiniteWater(fluidState.getType()) ? fluidState.getAmount() : -1;
+        if (ModFluids.isFiniteWater(fluidState.getType())) {
+            return fluidState.getAmount();
+        }
+        return FiniteWaterloggedPlants.canHoldFiniteWater(state) && fluidState.isEmpty() ? 0 : -1;
     }
 
     public static void setWaterLevel(ServerLevel level, BlockPos pos, int amount) {
@@ -79,8 +82,23 @@ public final class FiniteWaterPhysics {
 
         BlockState previous = level.getBlockState(pos);
         boolean wasFiniteWater = ModFluids.isFiniteWater(previous.getFluidState().getType());
-        if (!previous.isAir() && !wasFiniteWater) {
+        boolean plantHost = FiniteWaterloggedPlants.canHoldFiniteWater(previous);
+        if (!previous.isAir() && !wasFiniteWater && !plantHost) {
             throw new IllegalStateException("Cannot place finite water into " + previous + " at " + pos);
+        }
+
+        if (plantHost) {
+            BlockState updated = FiniteWaterloggedPlants.withLevel(previous, amount);
+            if (amount == 0 && wasFiniteWater && !updated.getFluidState().isEmpty()) {
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+                return;
+            }
+            level.setBlock(pos, updated, Block.UPDATE_ALL);
+            if (amount > 0) {
+                FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);
+                level.scheduleTick(pos, fluidState.getType(), fluidState.getType().getTickDelay(level));
+            }
+            return;
         }
 
         if (amount == 0) {
@@ -127,6 +145,30 @@ public final class FiniteWaterPhysics {
             }
         }
         return true;
+    }
+
+    public static int displaceWater(ServerLevel level, BlockPos origin, int amount) {
+        if (amount < 0 || amount > MAX_LEVEL) {
+            throw new IllegalArgumentException("Finite-water level must be between 0 and 8: " + amount);
+        }
+
+        BlockPos[] positions = new BlockPos[BUCKET_OVERFLOW.length];
+        int[] levels = new int[BUCKET_OVERFLOW.length];
+        int[] previous = new int[BUCKET_OVERFLOW.length];
+        for (int i = 0; i < BUCKET_OVERFLOW.length; i++) {
+            positions[i] = origin.relative(BUCKET_OVERFLOW[i]);
+            levels[i] = level.hasChunkAt(positions[i]) ? getWaterLevel(level, positions[i]) : -1;
+            previous[i] = levels[i];
+        }
+
+        int destroyed = FiniteWaterMath.distribute(amount, levels);
+        for (int i = 0; i < positions.length; i++) {
+            if (levels[i] >= 0 && levels[i] != previous[i]) {
+                setWaterLevel(level, positions[i], levels[i]);
+                applyCurrent(level, origin, positions[i], levels[i] - previous[i]);
+            }
+        }
+        return destroyed;
     }
 
     public static void tick(ServerLevel level, BlockPos pos) {

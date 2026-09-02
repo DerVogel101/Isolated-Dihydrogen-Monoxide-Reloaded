@@ -4,8 +4,18 @@
   "package": "io.github.SirWashington.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "MixinAquaticPlantBlock",
+    "MixinBlockStateBase",
     "MixinEntity",
-    "MixinPistonBaseBlock"
+    "MixinLevel",
+    "MixinMushroomBlock",
+    "MixinNetherFungusBlock",
+    "MixinPistonBaseBlock",
+    "MixinStateDefinitionBuilder",
+    "MixinTreeGrower"
+  ],
+  "client": [
+    "MixinClientLevel"
   ],
   "injectors": {
     "defaultRequire": 1
