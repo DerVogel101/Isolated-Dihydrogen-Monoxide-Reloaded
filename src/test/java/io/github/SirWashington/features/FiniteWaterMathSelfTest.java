@@ -12,8 +12,11 @@ import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FlowerPotBlock;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -28,6 +31,7 @@ public final class FiniteWaterMathSelfTest {
         Bootstrap.bootStrap();
         verifyAllHorizontalCombinations();
         verifySettledWaterStaysSettled();
+        verifyBarrierLimitedEqualization();
         verifyDistribution();
         verifyPistonTransaction();
         verifyPistonDirectionPriority();
@@ -47,6 +51,8 @@ public final class FiniteWaterMathSelfTest {
         verifyCurrentStrength();
         verifyPistonCurrentDirections();
         verifyFiniteWaterContactFluids();
+        verifyFiniteWaterRespectsBlockFaces();
+        verifyDoorWaterPressure();
         verifyFiniteWaterloggedPlantCoverage();
         verifyFiniteWaterEntityCompatibilityMixin();
         verifyPistonPressureConfig();
@@ -85,6 +91,20 @@ public final class FiniteWaterMathSelfTest {
         int remaining = FiniteWaterMath.equalizeFromCenter(1, neighbors);
         if (remaining != 1 || neighbors[0] != 0 || neighbors[1] != 1 || neighbors[3] != 0) {
             throw new AssertionError("Settled finite water moved again");
+        }
+    }
+
+    private static void verifyBarrierLimitedEqualization() {
+        int[] dryNeighbor = {0};
+        int retained = FiniteWaterMath.equalizeFromCenter(4, dryNeighbor, new int[]{4});
+        if (retained != 4 || dryNeighbor[0] != 0) {
+            throw new AssertionError("Water crossed a half-block barrier at level 4");
+        }
+
+        int[] floodedNeighbor = {0};
+        retained = FiniteWaterMath.equalizeFromCenter(8, floodedNeighbor, new int[]{4});
+        if (retained != 4 || floodedNeighbor[0] != 4) {
+            throw new AssertionError("Water above a half-block barrier did not overflow correctly");
         }
     }
 
@@ -435,20 +455,15 @@ public final class FiniteWaterMathSelfTest {
     }
 
     private static void verifyFiniteWaterloggedPlantCoverage() {
-        boolean supportsFullSolidBlock = BuiltInRegistries.BLOCK.stream()
-                .filter(FiniteWaterloggedPlants::supports)
-                .anyMatch(block -> Block.isShapeFullBlock(block.defaultBlockState()
-                        .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)));
-        if (supportsFullSolidBlock) {
-            throw new AssertionError("Full solid blocks must not hold finite water");
-        }
         List<Block> expectedPlants = List.of(
                 Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.LARGE_FERN, Blocks.SUNFLOWER,
                 Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS,
                 Blocks.TORCHFLOWER_CROP, Blocks.PITCHER_CROP, Blocks.PITCHER_PLANT,
                 Blocks.NETHER_WART, Blocks.SWEET_BERRY_BUSH,
+                Blocks.MELON_STEM, Blocks.ATTACHED_MELON_STEM,
+                Blocks.PUMPKIN_STEM, Blocks.ATTACHED_PUMPKIN_STEM,
                 Blocks.SUGAR_CANE, Blocks.BAMBOO, Blocks.BAMBOO_SAPLING, Blocks.CACTUS,
-                Blocks.CACTUS_FLOWER, Blocks.CHORUS_PLANT,
+                Blocks.CACTUS_FLOWER, Blocks.CHORUS_PLANT, Blocks.CHORUS_FLOWER,
                 Blocks.VINE, Blocks.CAVE_VINES, Blocks.WEEPING_VINES, Blocks.TWISTING_VINES,
                 Blocks.KELP, Blocks.KELP_PLANT, Blocks.SEAGRASS, Blocks.TALL_SEAGRASS,
                 Blocks.SEA_PICKLE, Blocks.COCOA, Blocks.BIG_DRIPLEAF, Blocks.SMALL_DRIPLEAF,
@@ -459,6 +474,42 @@ public final class FiniteWaterMathSelfTest {
                 Blocks.FIREFLY_BUSH, Blocks.MOSS_CARPET, Blocks.PALE_MOSS_CARPET
         );
         if (expectedPlants.stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || !FiniteWaterloggedPlants.supports(Blocks.OAK_DOOR)
+                || !FiniteWaterloggedPlants.supports(Blocks.OAK_TRAPDOOR)
+                || !FiniteWaterloggedPlants.supports(Blocks.OAK_SLAB)
+                || !FiniteWaterloggedPlants.supports(Blocks.OAK_STAIRS)
+                || !FiniteWaterloggedPlants.supports(Blocks.IRON_BARS)
+                || Blocks.COPPER_BARS.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || Blocks.BANNER.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || Blocks.BED.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || !FiniteWaterloggedPlants.supports(Blocks.BELL)
+                || !FiniteWaterloggedPlants.supports(Blocks.BREWING_STAND)
+                || !FiniteWaterloggedPlants.supports(Blocks.CAKE)
+                || !FiniteWaterloggedPlants.supports(Blocks.CANDLE_CAKE)
+                || !FiniteWaterloggedPlants.supports(Blocks.CAMPFIRE)
+                || !FiniteWaterloggedPlants.supports(Blocks.CHEST)
+                || !FiniteWaterloggedPlants.supports(Blocks.COMPOSTER)
+                || !FiniteWaterloggedPlants.supports(Blocks.DAYLIGHT_DETECTOR)
+                || !FiniteWaterloggedPlants.supports(Blocks.DRAGON_EGG)
+                || !FiniteWaterloggedPlants.supports(Blocks.ENCHANTING_TABLE)
+                || !FiniteWaterloggedPlants.supports(Blocks.END_PORTAL_FRAME)
+                || !FiniteWaterloggedPlants.supports(Blocks.OAK_FENCE_GATE)
+                || !FiniteWaterloggedPlants.supports(Blocks.GRINDSTONE)
+                || !FiniteWaterloggedPlants.supports(Blocks.HOPPER)
+                || !FiniteWaterloggedPlants.supports(Blocks.LADDER)
+                || !FiniteWaterloggedPlants.supports(Blocks.LECTERN)
+                || !FiniteWaterloggedPlants.supports(Blocks.LEVER)
+                || !FiniteWaterloggedPlants.supports(Blocks.PISTON)
+                || !FiniteWaterloggedPlants.supports(Blocks.STONE_BUTTON)
+                || !FiniteWaterloggedPlants.supports(Blocks.STONE_PRESSURE_PLATE)
+                || !FiniteWaterloggedPlants.supports(Blocks.REDSTONE_WIRE)
+                || !FiniteWaterloggedPlants.supports(Blocks.REPEATER)
+                || !FiniteWaterloggedPlants.supports(Blocks.RAIL)
+                || !FiniteWaterloggedPlants.supports(Blocks.SPAWNER)
+                || !FiniteWaterloggedPlants.supports(Blocks.STONECUTTER)
+                || !FiniteWaterloggedPlants.supports(Blocks.TORCH)
+                || !FiniteWaterloggedPlants.supports(Blocks.TRIPWIRE)
+                || !FiniteWaterloggedPlants.supports(Blocks.TURTLE_EGG)
                 || Blocks.CARPET.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
                 || BuiltInRegistries.BLOCK.stream().filter(block -> block instanceof FlowerPotBlock)
                 .anyMatch(block -> !FiniteWaterloggedPlants.supports(block))) {
@@ -470,17 +521,148 @@ public final class FiniteWaterMathSelfTest {
                 || FiniteWaterloggedPlants.supports(Blocks.PALE_MOSS_BLOCK)
                 || FiniteWaterloggedPlants.supports(Blocks.HAY_BLOCK)
                 || FiniteWaterloggedPlants.supports(Blocks.OAK_LEAVES)
-                || FiniteWaterloggedPlants.supports(Blocks.MANGROVE_ROOTS)
-                || FiniteWaterloggedPlants.supports(Blocks.CHORUS_FLOWER)
-                || FiniteWaterloggedPlants.supports(Blocks.OAK_DOOR)
-                || FiniteWaterloggedPlants.supports(Blocks.OAK_STAIRS)) {
-            throw new AssertionError("Finite-water plant support leaked into unrelated block families");
+                || FiniteWaterloggedPlants.supports(Blocks.COBBLESTONE_WALL)
+                || FiniteWaterloggedPlants.supports(Blocks.GLASS_PANE)
+                || Blocks.STAINED_GLASS_PANE.asList().stream().anyMatch(FiniteWaterloggedPlants::supports)
+                || FiniteWaterloggedPlants.supports(Blocks.BARRIER)
+                || FiniteWaterloggedPlants.supports(Blocks.BEACON)
+                || FiniteWaterloggedPlants.supports(Blocks.SHULKER_BOX)) {
+            throw new AssertionError("Finite-water support ignored an explicit exclusion");
         }
         if (FiniteWaterloggedPlants.LEVEL.getPossibleValues().size() != 9
                 || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(0)
-                || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(8)) {
+                || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(8)
+                || FiniteWaterloggedPlants.EXTINGUISH_LEVEL != 3) {
             throw new AssertionError("Finite-water plant levels must cover 0 through 8");
         }
+
+        var litCampfire = Blocks.CAMPFIRE.defaultBlockState()
+                .setValue(BlockStateProperties.LIT, true);
+        if (FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 2)
+                || !FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 3)) {
+            throw new AssertionError("Campfires must burn at levels 0-2 and extinguish at level 3+");
+        }
+    }
+
+    private static void verifyDoorWaterPressure() {
+        BlockPos lowerDoor = BlockPos.ZERO;
+        Map<BlockPos, Integer> outsideColumn = Map.of(
+                lowerDoor.south(), 8,
+                lowerDoor.south().above(), 8
+        );
+        if (!FiniteWaterPhysics.doorHasFullWaterOutside(
+                lowerDoor, Direction.NORTH, levelAt(outsideColumn)
+        )) {
+            throw new AssertionError("Two full outside water cells did not open a door inward");
+        }
+
+        Map<BlockPos, Integer> insideColumn = Map.of(
+                lowerDoor.north(), 8,
+                lowerDoor.north().above(), 8
+        );
+        if (FiniteWaterPhysics.doorHasFullWaterOutside(
+                lowerDoor, Direction.NORTH, levelAt(insideColumn)
+        )) {
+            throw new AssertionError("Water on the inside pushed a door open outward");
+        }
+
+        Map<BlockPos, Integer> incompleteColumn = Map.of(lowerDoor.south(), 8);
+        if (FiniteWaterPhysics.doorHasFullWaterOutside(
+                lowerDoor, Direction.NORTH, levelAt(incompleteColumn)
+        )) {
+            throw new AssertionError("One full outside water cell opened both door halves");
+        }
+    }
+
+    private static void verifyFiniteWaterRespectsBlockFaces() {
+        var air = Shapes.empty();
+        var fullBlock = Shapes.block();
+        var bottomSlabState = Blocks.OAK_SLAB.defaultBlockState();
+        var bottomSlab = bottomSlabState.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        var bottomStairs = Blocks.OAK_STAIRS.defaultBlockState()
+                .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        var topSlab = Blocks.OAK_SLAB.defaultBlockState()
+                .setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP)
+                .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        if (!FiniteWaterPhysics.canFlowBetween(air, air, Direction.NORTH)
+                || FiniteWaterPhysics.canFlowBetween(fullBlock, air, Direction.NORTH)
+                || FiniteWaterPhysics.canFlowBetween(bottomSlab, air, Direction.DOWN)
+                || !FiniteWaterPhysics.canFlowBetween(bottomSlab, air, Direction.UP)
+                || FiniteWaterPhysics.canFlowBetween(bottomStairs, air, Direction.DOWN)
+                || !FiniteWaterPhysics.canFlowBetween(bottomStairs, air, Direction.UP)) {
+            throw new AssertionError("Finite water does not respect full collision faces");
+        }
+        if (FiniteWaterPhysics.flowBarrierLevel(bottomSlab, air, Direction.NORTH) != 4
+                || FiniteWaterPhysics.flowBarrierLevel(topSlab, air, Direction.NORTH) != 0
+                || FiniteWaterPhysics.flowBarrierLevel(fullBlock, air, Direction.NORTH) != 8) {
+            throw new AssertionError("Finite-water barrier height does not match the visible block shape");
+        }
+        if (FiniteWaterPhysics.flowBarrierLevel(
+                FiniteWaterPhysics.outgoingFlowShape(bottomSlabState, bottomSlab, Direction.NORTH),
+                air, Direction.NORTH
+        ) != 0
+                || FiniteWaterPhysics.flowBarrierLevel(air, bottomSlab, Direction.NORTH) != 4
+                || FiniteWaterPhysics.canFlowBetween(
+                FiniteWaterPhysics.outgoingFlowShape(bottomSlabState, bottomSlab, Direction.DOWN),
+                air, Direction.DOWN
+        )) {
+            throw new AssertionError("A slab must release water freely but accept it only above its height");
+        }
+
+        boolean stairHasHalfBarrier = false;
+        boolean stairHasFullBarrier = false;
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            int barrier = FiniteWaterPhysics.flowBarrierLevel(bottomStairs, air, direction);
+            stairHasHalfBarrier |= barrier == 4;
+            stairHasFullBarrier |= barrier == 8;
+        }
+        if (!stairHasHalfBarrier || !stairHasFullBarrier) {
+            throw new AssertionError("Bottom stairs do not expose their half-height and full-height barriers");
+        }
+
+        int closedDoorMask = horizontalFlowMask(
+                Blocks.OAK_DOOR.defaultBlockState().getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)
+        );
+        int openDoorMask = horizontalFlowMask(
+                Blocks.OAK_DOOR.defaultBlockState().setValue(BlockStateProperties.OPEN, true)
+                        .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)
+        );
+        if (closedDoorMask == openDoorMask || closedDoorMask == 0 || openDoorMask == 0) {
+            throw new AssertionError("Opening a door did not rotate its finite-water flow boundary");
+        }
+
+        var closedTrapdoorState = Blocks.OAK_TRAPDOOR.defaultBlockState();
+        var closedTrapdoor = closedTrapdoorState.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        var openTrapdoor = closedTrapdoorState.setValue(BlockStateProperties.OPEN, true)
+                .getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        if (FiniteWaterPhysics.canFlowBetween(
+                FiniteWaterPhysics.outgoingFlowShape(closedTrapdoorState, closedTrapdoor, Direction.DOWN),
+                air, Direction.DOWN
+        )
+                || horizontalFlowMask(openTrapdoor) == 0) {
+            throw new AssertionError("Trapdoor finite-water boundary does not follow its open state");
+        }
+
+        BlockPos start = BlockPos.ZERO;
+        Map<BlockPos, Integer> world = Map.of(start, 8, start.east(), 0);
+        Map<BlockPos, Integer> blockedPlan = SpecialFlow.planPush(
+                List.of(start), Direction.EAST, levelAt(world), 8, 64,
+                pos -> true, Set.of(start), new HashMap<>(),
+                (from, to) -> !from.equals(start) || !to.equals(start.east())
+        );
+        if (blockedPlan != null) {
+            throw new AssertionError("Piston pressure crossed a block face that stops water");
+        }
+    }
+
+    private static int horizontalFlowMask(net.minecraft.world.phys.shapes.VoxelShape shape) {
+        int mask = 0;
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            if (FiniteWaterPhysics.canFlowBetween(shape, Shapes.empty(), direction)) {
+                mask |= 1 << direction.get2DDataValue();
+            }
+        }
+        return mask;
     }
 
     private static void verifyFiniteWaterEntityCompatibilityMixin() throws Exception {
@@ -492,6 +674,7 @@ public final class FiniteWaterMathSelfTest {
             String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             if (!json.contains("\"MixinAquaticPlantBlock\"")
                     || !json.contains("\"MixinBlockStateBase\"")
+                    || !json.contains("\"MixinBucketItem\"")
                     || !json.contains("\"MixinClientLevel\"")
                     || !json.contains("\"MixinMushroomBlock\"")
                     || !json.contains("\"MixinNetherFungusBlock\"")
@@ -504,6 +687,7 @@ public final class FiniteWaterMathSelfTest {
         }
         Class.forName("io.github.SirWashington.mixin.MixinAquaticPlantBlock");
         Class.forName("io.github.SirWashington.mixin.MixinBlockStateBase");
+        Class.forName("io.github.SirWashington.mixin.MixinBucketItem");
         Class.forName("io.github.SirWashington.mixin.MixinEntity");
         Class.forName("io.github.SirWashington.mixin.MixinLevel");
         Class.forName("io.github.SirWashington.mixin.MixinStateDefinitionBuilder");

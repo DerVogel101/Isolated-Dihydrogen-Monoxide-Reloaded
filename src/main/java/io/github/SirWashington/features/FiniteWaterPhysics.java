@@ -12,14 +12,23 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.AbstractCandleBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
+import net.minecraft.world.level.block.WeatheringCopperDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -28,6 +37,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.ToIntFunction;
 
 public final class FiniteWaterPhysics {
     private static final int MAX_LEVEL = 8;
@@ -39,6 +49,7 @@ public final class FiniteWaterPhysics {
     private static final double MAX_DOWNWARD_SPEED = -0.3D;
     private static final long CURRENT_DURATION_TICKS = 10L;
     private static final int PUDDLE_RADIUS = 4;
+    private static final ThreadLocal<BlockPos> WATER_LEVEL_WRITE_POSITION = new ThreadLocal<>();
     private static final Map<ServerLevel, Map<BlockPos, FlowCurrent>> ACTIVE_CURRENTS = new WeakHashMap<>();
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
@@ -88,12 +99,25 @@ public final class FiniteWaterPhysics {
         }
 
         if (plantHost) {
+            int previousAmount = FiniteWaterloggedPlants.getLevel(previous);
+            boolean extinguished = previousAmount < FiniteWaterloggedPlants.EXTINGUISH_LEVEL
+                    && amount >= FiniteWaterloggedPlants.EXTINGUISH_LEVEL
+                    && previous.hasProperty(BlockStateProperties.LIT)
+                    && previous.getValue(BlockStateProperties.LIT)
+                    && FiniteWaterloggedPlants.isExtinguishable(previous);
+            if (extinguished) {
+                if (previous.getBlock() instanceof CampfireBlock) {
+                    CampfireBlock.dowse(null, level, pos, previous);
+                } else if (previous.getBlock() instanceof AbstractCandleBlock) {
+                    AbstractCandleBlock.extinguish(null, previous, level, pos);
+                }
+            }
             BlockState updated = FiniteWaterloggedPlants.withLevel(previous, amount);
             if (amount == 0 && wasFiniteWater && !updated.getFluidState().isEmpty()) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
                 return;
             }
-            level.setBlock(pos, updated, Block.UPDATE_ALL);
+            setWaterloggedBlock(level, pos, updated);
             if (amount > 0) {
                 FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);
                 level.scheduleTick(pos, fluidState.getType(), fluidState.getType().getTickDelay(level));
@@ -115,6 +139,24 @@ public final class FiniteWaterPhysics {
         level.scheduleTick(pos, fluidState.getType(), fluidState.getType().getTickDelay(level));
     }
 
+    public static boolean isChangingWaterLevel(BlockPos pos) {
+        return pos.equals(WATER_LEVEL_WRITE_POSITION.get());
+    }
+
+    private static void setWaterloggedBlock(ServerLevel level, BlockPos pos, BlockState state) {
+        BlockPos previousWritePosition = WATER_LEVEL_WRITE_POSITION.get();
+        WATER_LEVEL_WRITE_POSITION.set(pos.immutable());
+        try {
+            level.setBlock(pos, state, Block.UPDATE_ALL);
+        } finally {
+            if (previousWritePosition == null) {
+                WATER_LEVEL_WRITE_POSITION.remove();
+            } else {
+                WATER_LEVEL_WRITE_POSITION.set(previousWritePosition);
+            }
+        }
+    }
+
     public static boolean placeFullBucket(ServerLevel level, BlockPos pos) {
         int current = getWaterLevel(level, pos);
         if (current < 0) {
@@ -129,7 +171,8 @@ public final class FiniteWaterPhysics {
         int[] amounts = new int[BUCKET_OVERFLOW.length];
         for (int i = 0; i < BUCKET_OVERFLOW.length; i++) {
             positions[i] = pos.relative(BUCKET_OVERFLOW[i]);
-            amounts[i] = getWaterLevel(level, positions[i]);
+            amounts[i] = canFlowBetween(level, pos, positions[i])
+                    ? getWaterLevel(level, positions[i]) : -1;
         }
 
         int[] previous = amounts.clone();
@@ -157,7 +200,8 @@ public final class FiniteWaterPhysics {
         int[] previous = new int[BUCKET_OVERFLOW.length];
         for (int i = 0; i < BUCKET_OVERFLOW.length; i++) {
             positions[i] = origin.relative(BUCKET_OVERFLOW[i]);
-            levels[i] = level.hasChunkAt(positions[i]) ? getWaterLevel(level, positions[i]) : -1;
+            levels[i] = level.hasChunkAt(positions[i]) && canFlowBetween(level, origin, positions[i])
+                    ? getWaterLevel(level, positions[i]) : -1;
             previous[i] = levels[i];
         }
 
@@ -181,13 +225,18 @@ public final class FiniteWaterPhysics {
             return;
         }
 
+
+        if (center == MAX_LEVEL) {
+            openPressurizedDoor(level, pos);
+        }
+
         if (disappearsOnVanillaFluidContact(level, pos)) {
             return;
         }
 
         BlockPos below = pos.below();
         int belowLevel = getWaterLevel(level, below);
-        if (belowLevel >= 0 && belowLevel < MAX_LEVEL) {
+        if (belowLevel >= 0 && belowLevel < MAX_LEVEL && canFlowBetween(level, pos, below, center)) {
             int moved = Math.min(center, MAX_LEVEL - belowLevel);
             setWaterLevel(level, pos, center - moved);
             setWaterLevel(level, below, belowLevel + moved);
@@ -201,11 +250,47 @@ public final class FiniteWaterPhysics {
         equalizeHorizontally(level, pos, center);
     }
 
+    private static void openPressurizedDoor(ServerLevel level, BlockPos waterPos) {
+        for (Direction direction : HORIZONTAL) {
+            BlockPos candidatePos = waterPos.relative(direction);
+            BlockState candidate = level.getBlockState(candidatePos);
+            if (!(candidate.getBlock() instanceof DoorBlock)) {
+                continue;
+            }
+
+            BlockPos lowerPos = candidate.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER
+                    ? candidatePos : candidatePos.below();
+            BlockState lower = level.getBlockState(lowerPos);
+            if (!(lower.getBlock() instanceof DoorBlock door)
+                    || lower.getValue(BlockStateProperties.OPEN)
+                    || !door.type().canOpenByHand()
+                    || door instanceof WeatheringCopperDoorBlock) {
+                continue;
+            }
+
+            Direction facing = lower.getValue(BlockStateProperties.HORIZONTAL_FACING);
+            if (doorHasFullWaterOutside(lowerPos, facing, pos -> getWaterLevel(level, pos))) {
+                door.setOpen(null, level, lower, lowerPos, true);
+            }
+        }
+    }
+
+    static boolean doorHasFullWaterOutside(BlockPos lowerPos, Direction facing,
+                                           ToIntFunction<BlockPos> levelAt) {
+        return hasFullWaterColumn(lowerPos.relative(facing.getOpposite()), levelAt);
+    }
+
+    private static boolean hasFullWaterColumn(BlockPos lowerOutside, ToIntFunction<BlockPos> levelAt) {
+        return levelAt.applyAsInt(lowerOutside) == MAX_LEVEL
+                && levelAt.applyAsInt(lowerOutside.above()) == MAX_LEVEL;
+    }
+
     private static boolean disappearsOnVanillaFluidContact(ServerLevel level, BlockPos pos) {
         boolean touchesWater = false;
+        int waterLevel = getWaterLevel(level, pos);
         for (Direction direction : Direction.values()) {
             BlockPos neighbor = pos.relative(direction);
-            if (!level.hasChunkAt(neighbor)) {
+            if (!level.hasChunkAt(neighbor) || !canFlowBetween(level, pos, neighbor, waterLevel)) {
                 continue;
             }
             Fluid fluid = level.getFluidState(neighbor).getType();
@@ -242,6 +327,73 @@ public final class FiniteWaterPhysics {
 
     static boolean isVanillaLava(Fluid fluid) {
         return fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA;
+    }
+
+    static boolean canFlowBetween(LevelReader level, BlockPos from, BlockPos to) {
+        return flowBarrierLevel(level, from, to, false) < MAX_LEVEL;
+    }
+
+    static boolean canFlowBetween(LevelReader level, BlockPos from, BlockPos to, int waterLevel) {
+        return waterLevel > flowBarrierLevel(level, from, to);
+    }
+
+    static int flowBarrierLevel(LevelReader level, BlockPos from, BlockPos to) {
+        return flowBarrierLevel(level, from, to, true);
+    }
+
+    private static int flowBarrierLevel(LevelReader level, BlockPos from, BlockPos to,
+                                        boolean naturalFlow) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        int dz = to.getZ() - from.getZ();
+        if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1) {
+            return MAX_LEVEL;
+        }
+        Direction direction = Direction.getNearest(dx, dy, dz, Direction.NORTH);
+        BlockState fromState = level.getBlockState(from);
+        BlockState toState = level.getBlockState(to);
+        VoxelShape fromShape = fromState.getCollisionShape(level, from);
+        VoxelShape toShape = toState.getCollisionShape(level, to);
+        return flowBarrierLevel(
+                naturalFlow
+                        ? outgoingFlowShape(fromState, fromShape, direction)
+                        : FiniteWaterloggedPlants.isExtinguishable(fromState) ? Shapes.empty() : fromShape,
+                !naturalFlow && FiniteWaterloggedPlants.isExtinguishable(toState) ? Shapes.empty() : toShape,
+                direction
+        );
+    }
+
+    static VoxelShape outgoingFlowShape(BlockState state, VoxelShape collisionShape, Direction direction) {
+        Block block = state.getBlock();
+        return direction.getAxis().isHorizontal()
+                && FiniteWaterloggedPlants.supports(block)
+                && !(block instanceof DoorBlock)
+                && !(block instanceof TrapDoorBlock)
+                ? Shapes.empty() : collisionShape;
+    }
+
+    static boolean canFlowBetween(VoxelShape from, VoxelShape to, Direction direction) {
+        return !Shapes.mergedFaceOccludes(from, to, direction);
+    }
+
+    static int flowBarrierLevel(VoxelShape from, VoxelShape to, Direction direction) {
+        if (Shapes.mergedFaceOccludes(from, to, direction)) {
+            return MAX_LEVEL;
+        }
+        if (direction.getAxis() == Direction.Axis.Y) {
+            return 0;
+        }
+
+        int barrier = 0;
+        for (int level = 1; level < MAX_LEVEL; level++) {
+            double height = (double) level / MAX_LEVEL;
+            VoxelShape upperHalfSpace = Shapes.box(0.0D, height, 0.0D, 1.0D, 1.0D, 1.0D);
+            if (!Shapes.mergedFaceOccludes(Shapes.or(from, upperHalfSpace), to, direction)) {
+                break;
+            }
+            barrier = level;
+        }
+        return barrier;
     }
 
     static void applyCurrent(ServerLevel level, BlockPos pos, Vec3 units) {
@@ -382,13 +534,16 @@ public final class FiniteWaterPhysics {
         int rotation = Math.floorMod((int) (level.getGameTime() + centerPos.asLong()), HORIZONTAL.length);
         BlockPos[] positions = new BlockPos[HORIZONTAL.length];
         int[] amounts = new int[HORIZONTAL.length];
+        int[] barriers = new int[HORIZONTAL.length];
         for (int i = 0; i < HORIZONTAL.length; i++) {
             positions[i] = centerPos.relative(HORIZONTAL[(rotation + i) % HORIZONTAL.length]);
-            amounts[i] = getWaterLevel(level, positions[i]);
+            barriers[i] = flowBarrierLevel(level, centerPos, positions[i]);
+            amounts[i] = barriers[i] < MAX_LEVEL
+                    ? getWaterLevel(level, positions[i]) : -1;
         }
 
         int[] previous = amounts.clone();
-        center = FiniteWaterMath.equalizeFromCenter(center, amounts);
+        center = FiniteWaterMath.equalizeFromCenter(center, amounts, barriers);
 
         for (int i = 0; i < HORIZONTAL.length; i++) {
             if (amounts[i] >= 0 && amounts[i] != getWaterLevel(level, positions[i])) {
@@ -421,6 +576,7 @@ public final class FiniteWaterPhysics {
                 BlockPos next = current.relative(direction);
                 if (Math.abs(next.getX() - start.getX()) > PUDDLE_RADIUS
                         || Math.abs(next.getZ() - start.getZ()) > PUDDLE_RADIUS
+                        || !canFlowBetween(level, current, next, 1)
                         || !visited.add(next)) {
                     continue;
                 }
@@ -433,7 +589,8 @@ public final class FiniteWaterPhysics {
                 Direction step = current.equals(start) ? direction : firstStep.get(current);
                 firstStep.put(next, step);
                 int dropLevel = getWaterLevel(level, next.below());
-                if (dropLevel >= 0 && dropLevel < MAX_LEVEL) {
+                if (dropLevel >= 0 && dropLevel < MAX_LEVEL
+                        && canFlowBetween(level, next, next.below(), 1)) {
                     BlockPos destination = start.relative(step);
                     int destinationLevel = getWaterLevel(level, destination);
                     setWaterLevel(level, start, 0);

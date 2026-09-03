@@ -5,10 +5,19 @@ final class FiniteWaterMath {
     }
 
     static int equalizeFromCenter(int center, int[] neighbors) {
+        return equalizeFromCenter(center, neighbors, new int[neighbors.length]);
+    }
+
+    static int equalizeFromCenter(int center, int[] neighbors, int[] barriers) {
+        if (neighbors.length != barriers.length) {
+            throw new IllegalArgumentException("Each neighbor needs a flow barrier");
+        }
         int stopped = 0;
         while (stopped < neighbors.length) {
             for (int i = 0; i < neighbors.length; i++) {
-                if (neighbors[i] >= 0 && center > neighbors[i] + 1) {
+                if (neighbors[i] >= 0
+                        && center > barriers[i]
+                        && center > neighbors[i] + 1) {
                     neighbors[i]++;
                     center--;
                 } else {

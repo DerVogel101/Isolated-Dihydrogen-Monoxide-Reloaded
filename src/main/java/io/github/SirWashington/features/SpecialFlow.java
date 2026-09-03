@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
@@ -38,7 +39,8 @@ public class SpecialFlow {
                 WaterPhysicsConfig.pistonPressureMaxVisitedWaterCells(),
                 pos -> level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4),
                 pistonOccupiedPositions,
-                flowTransfers
+                flowTransfers,
+                (from, to) -> FiniteWaterPhysics.canFlowBetween(level, from, to)
         );
         if (plannedLevels == null) {
             return false;
@@ -74,7 +76,7 @@ public class SpecialFlow {
                                             int maxVisitedWaterCells, Predicate<BlockPos> isLoaded,
                                             Set<BlockPos> pistonOccupiedPositions) {
         return planPush(waterPositions, pistonDirection, levelAt, maxDepth, maxVisitedWaterCells,
-                isLoaded, pistonOccupiedPositions, new HashMap<>());
+                isLoaded, pistonOccupiedPositions, new HashMap<>(), (from, to) -> true);
     }
 
     static Map<BlockPos, Integer> planPush(List<BlockPos> waterPositions, Direction pistonDirection,
@@ -82,6 +84,16 @@ public class SpecialFlow {
                                             int maxVisitedWaterCells, Predicate<BlockPos> isLoaded,
                                             Set<BlockPos> pistonOccupiedPositions,
                                             Map<BlockPos, Vec3> flowTransfers) {
+        return planPush(waterPositions, pistonDirection, levelAt, maxDepth, maxVisitedWaterCells,
+                isLoaded, pistonOccupiedPositions, flowTransfers, (from, to) -> true);
+    }
+
+    static Map<BlockPos, Integer> planPush(List<BlockPos> waterPositions, Direction pistonDirection,
+                                            ToIntFunction<BlockPos> levelAt, int maxDepth,
+                                            int maxVisitedWaterCells, Predicate<BlockPos> isLoaded,
+                                            Set<BlockPos> pistonOccupiedPositions,
+                                            Map<BlockPos, Vec3> flowTransfers,
+                                            BiPredicate<BlockPos, BlockPos> canFlowBetween) {
         if (maxDepth <= 0 || maxVisitedWaterCells <= 0) {
             throw new IllegalArgumentException("Piston-pressure limits must be positive");
         }
@@ -107,7 +119,8 @@ public class SpecialFlow {
 
             SearchResult search = findComponent(
                     start, volumes, pistonDirection, levelAt, maxDepth,
-                    maxVisitedWaterCells, isLoaded, pistonOccupiedPositions, visitedWaterCells
+                    maxVisitedWaterCells, isLoaded, pistonOccupiedPositions, visitedWaterCells,
+                    canFlowBetween
             );
             if (search == null) {
                 return null;
@@ -155,7 +168,8 @@ public class SpecialFlow {
                                                 Direction pistonDirection, ToIntFunction<BlockPos> levelAt,
                                                 int maxDepth, int maxVisitedWaterCells,
                                                 Predicate<BlockPos> isLoaded, Set<BlockPos> pistonOccupiedPositions,
-                                                Set<BlockPos> visitedWaterCells) {
+                                                Set<BlockPos> visitedWaterCells,
+                                                BiPredicate<BlockPos, BlockPos> canFlowBetween) {
         if (!isLoaded.test(seed) || !visitWater(seed, visitedWaterCells, maxVisitedWaterCells)) {
             return null;
         }
@@ -178,7 +192,7 @@ public class SpecialFlow {
             for (int index = 0; index < directions.length; index++) {
                 Direction direction = directions[index];
                 BlockPos next = state.pos().relative(direction);
-                if (!isLoaded.test(next)) {
+                if (!isLoaded.test(next) || !canFlowBetween.test(state.pos(), next)) {
                     continue;
                 }
 
@@ -191,7 +205,8 @@ public class SpecialFlow {
                 if (level == 0) {
                     addOutletTargets(
                             targets, next, direction, state.depth() + 1, maxDepth,
-                            priority, levelAt, isLoaded, pistonOccupiedPositions, state.path()
+                            priority, levelAt, isLoaded, pistonOccupiedPositions, state.path(),
+                            canFlowBetween
                     );
                     continue;
                 }
@@ -226,17 +241,21 @@ public class SpecialFlow {
     private static void addOutletTargets(Map<BlockPos, Target> targets, BlockPos firstAir,
                                          Direction direction, int firstDepth, int maxDepth, int priority,
                                          ToIntFunction<BlockPos> levelAt, Predicate<BlockPos> isLoaded,
-                                         Set<BlockPos> pistonOccupiedPositions, List<BlockPos> waterPath) {
+                                         Set<BlockPos> pistonOccupiedPositions, List<BlockPos> waterPath,
+                                         BiPredicate<BlockPos, BlockPos> canFlowBetween) {
         BlockPos cursor = firstAir;
+        BlockPos previous = waterPath.getLast();
         List<BlockPos> path = waterPath;
         for (int depth = firstDepth; depth <= maxDepth; depth++) {
             if (!isLoaded.test(cursor)
                     || pistonOccupiedPositions.contains(cursor)
+                    || !canFlowBetween.test(previous, cursor)
                     || levelAt.applyAsInt(cursor) != 0) {
                 return;
             }
             path = appendPath(path, cursor);
             addTarget(targets, cursor, priority, path);
+            previous = cursor;
             cursor = cursor.relative(direction);
         }
     }

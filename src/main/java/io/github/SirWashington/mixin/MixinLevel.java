@@ -2,6 +2,7 @@ package io.github.SirWashington.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.SirWashington.features.FiniteWaterGrowthDisplacement;
+import io.github.SirWashington.features.FiniteWaterPhysics;
 import io.github.SirWashington.features.FiniteWaterloggedPlants;
 import io.github.SirWashington.fluid.ModFluids;
 import net.minecraft.core.BlockPos;
@@ -28,14 +29,34 @@ public abstract class MixinLevel {
         if (!level.isInValidBounds(pos) || !FiniteWaterloggedPlants.canHoldFiniteWater(replacement)) {
             return replacement;
         }
-
-        BlockState previous = level.getBlockState(pos);
-        if (previous.getBlock() == replacement.getBlock()) {
+        if (level.isClientSide()) {
             return replacement;
         }
-        FluidState previousFluid = previous.getFluidState();
-        return ModFluids.isFiniteWater(previousFluid.getType())
-                ? FiniteWaterloggedPlants.withLevel(replacement, previousFluid.getAmount())
-                : replacement;
+
+        BlockState previous = level.getBlockState(pos);
+        int amount;
+        if (previous.getBlock() == replacement.getBlock()) {
+            if (FiniteWaterPhysics.isChangingWaterLevel(pos)) {
+                amount = FiniteWaterloggedPlants.getLevel(replacement);
+            } else {
+                amount = FiniteWaterloggedPlants.getLevel(previous);
+                if (amount == 0 && !previous.getFluidState().isEmpty()) {
+                    return replacement;
+                }
+            }
+        } else {
+            FluidState previousFluid = previous.getFluidState();
+            if (!ModFluids.isFiniteWater(previousFluid.getType())) {
+                return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
+            }
+            amount = previousFluid.getAmount();
+        }
+
+        BlockState result = FiniteWaterloggedPlants.withLevel(replacement, amount);
+        if (amount > 0) {
+            FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);
+            level.scheduleTick(pos, fluidState.getType(), fluidState.getType().getTickDelay(level));
+        }
+        return result;
     }
 }
