@@ -22,6 +22,21 @@ The vanilla drip-path limits apply; cauldrons and other fluids are not converted
 `dripstone.enabled` disables this feature. `dripstone.fill_chance` controls the chance per random
 tick, defaulting to vanilla water-cauldron rarity (`0.17578125`); `0` stops accumulation.
 
+Farmland crops holding finite-water level **1 or 2** can gain one growth stage by consuming exactly
+one water level. This includes wheat, carrots, potatoes, beetroot, torchflowers, pitcher crops,
+and immature melon/pumpkin stems; mature stems do not produce bonus fruit. Normal growth is free.
+Normal light and growth-space requirements still apply, and blocked growth consumes no water.
+`crop_fertilization.enabled` toggles the feature. `crop_fertilization.growth_speed_increase`
+ranges from `0.0` to `1.0` and defaults to `0.5`: **50% more growth stages per unit time**, or
+about 33% less time to maturity, while levels 1-2 are continually maintained. Consumed or drained
+water must be replenished to maintain that average. Setting the increase to `0.0` disables bonuses.
+The chance follows each crop's normal growth probability, including soil conditions and slower
+beetroot/torchflower ticks. Dry crops, levels 3-8, and vanilla fluids receive no bonus.
+
+The isolated dedicated-server regression is available with
+`./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PcropTest runServer --args="--nogui" --no-daemon`
+(server directory: `build/crop-test-server`, with its own EULA/server settings).
+
 `waterlogging.excluded_blocks` accepts block IDs that already support finite water, for example
 `["minecraft:oak_slab"]`. It cannot add the `finite_water_level` property to otherwise unsupported
 blocks because block states are created before the server config is loaded.

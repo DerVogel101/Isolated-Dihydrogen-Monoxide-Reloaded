@@ -30,6 +30,14 @@ public final class WaterPhysicsConfig {
         return get(SERVER.dripstone.enabled);
     }
 
+    public static boolean cropFertilizationEnabled() {
+        return get(SERVER.cropFertilization.enabled);
+    }
+
+    public static double cropGrowthSpeedIncrease() {
+        return get(SERVER.cropFertilization.growthSpeedIncrease);
+    }
+
     public static double dripstoneFillChance() {
         return get(SERVER.dripstone.fillChance);
     }
@@ -117,6 +125,9 @@ public final class WaterPhysicsConfig {
     }
 
     public static final class Values {
+        @ConfigProperty(name = "crop_fertilization", comment = "Growth of farmland crops submerged in finite-water levels 1-2")
+        public final CropFertilization cropFertilization = new CropFertilization();
+
         @ConfigProperty(name = "dripstone", comment = "Finite-water production from hanging pointed dripstone")
         public final Dripstone dripstone = new Dripstone();
 
@@ -165,6 +176,14 @@ public final class WaterPhysicsConfig {
 
         @ConfigProperty(name = "fill_chance", comment = "Chance per random tick to add one finite-water unit below; default matches vanilla water cauldron filling; zero disables accumulation")
         public final DoubleProperty fillChance = DoubleProperty.create(0.17578125D, 0.0D, 1.0D);
+    }
+
+    public static final class CropFertilization {
+        @ConfigProperty(name = "enabled", comment = "Allow shallow finite water to fertilize farmland crops by one stage, consuming one water level")
+        public final BoolProperty enabled = BoolProperty.create(true);
+
+        @ConfigProperty(name = "growth_speed_increase", comment = "Relative growth-rate increase while water levels 1-2 are maintained; 0.5 means 50 percent faster, 0 disables fertilization")
+        public final DoubleProperty growthSpeedIncrease = DoubleProperty.create(0.5D, 0.0D, 1.0D);
     }
 
     public static final class Extinguishing {

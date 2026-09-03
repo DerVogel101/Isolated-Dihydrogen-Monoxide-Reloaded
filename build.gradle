@@ -9,7 +9,8 @@ group = project.maven_group
 def expandedModVersion = version
 def licenseArchiveName = project.archives_base_name
 def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
-if (dripstoneTest) {
+def cropTest = providers.gradleProperty('cropTest').isPresent()
+if (dripstoneTest || cropTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -31,9 +32,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest) {
+		if (dripstoneTest || cropTest) {
 			server {
-				runDir 'build/dripstone-test-server'
+				runDir cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -66,12 +67,17 @@ dependencies {
 processResources {
 	inputs.property "version", expandedModVersion
 	inputs.property "dripstoneTest", dripstoneTest
+	inputs.property "cropTest", cropTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
 		if (dripstoneTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DripstoneServerTest"') }
+		}
+		if (cropTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.CropFertilizationServerTest"') }
 		}
 	}
 }
@@ -91,6 +97,16 @@ test {
 }
 
 check.dependsOn physicsSelfTest
+
+if (cropTest) {
+	tasks.named('runServer') {
+		doLast {
+			if (!file('build/crop-test-server/logs/latest.log').text.contains('CROP_FERTILIZATION_SERVER_TEST_PASS')) {
+				throw new GradleException('Crop fertilization regression failed; inspect build/crop-test-server/logs/latest.log')
+			}
+		}
+	}
+}
 
 if (dripstoneTest) {
 	tasks.named('runServer') {
