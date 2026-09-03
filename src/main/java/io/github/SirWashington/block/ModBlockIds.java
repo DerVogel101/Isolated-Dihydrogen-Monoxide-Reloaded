@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Block;
 
 public final class ModBlockIds {
+    public static final ResourceKey<Block> RAIN_SENSOR = ResourceKey.create(
+            Registries.BLOCK, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "rain_sensor"));
     public static final ResourceKey<Block> FINITE_WATER = ResourceKey.create(
             Registries.BLOCK,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "finite_water")

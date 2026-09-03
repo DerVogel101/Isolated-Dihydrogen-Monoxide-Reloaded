@@ -2,6 +2,7 @@ package io.github.SirWashington.item;
 
 
 import io.github.SirWashington.component.ModDataComponentTypes;
+import io.github.SirWashington.block.ModBlocks;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -12,6 +13,9 @@ import java.util.function.Function;
 
 
 public class ModItems {
+    public static final Item RAIN_SENSOR = register(ModItemIds.RAIN_SENSOR,
+            properties -> new BlockItem(ModBlocks.RAIN_SENSOR, properties),
+            new Item.Properties().useBlockDescriptionPrefix());
 
     public static final Item PRECISION_BUCKET = register(
             ModItemIds.PRECISION_BUCKET,
@@ -29,6 +33,8 @@ public class ModItems {
     }
 
     public static void initialize() {
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->
+                entries.accept(RAIN_SENSOR));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register(entries -> {
             entries.accept(PRECISION_BUCKET);
             entries.accept(FINITE_WATER_BUCKET);

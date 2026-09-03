@@ -10,7 +10,8 @@ def expandedModVersion = version
 def licenseArchiveName = project.archives_base_name
 def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
-if (dripstoneTest || cropTest) {
+def sensorTest = providers.gradleProperty('sensorTest').isPresent()
+if (dripstoneTest || cropTest || sensorTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -32,9 +33,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest) {
+		if (dripstoneTest || cropTest || sensorTest) {
 			server {
-				runDir cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -68,6 +69,7 @@ processResources {
 	inputs.property "version", expandedModVersion
 	inputs.property "dripstoneTest", dripstoneTest
 	inputs.property "cropTest", cropTest
+	inputs.property "sensorTest", sensorTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
@@ -78,6 +80,10 @@ processResources {
 		if (cropTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.CropFertilizationServerTest"') }
+		}
+		if (sensorTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.RainSensorServerTest"') }
 		}
 	}
 }
@@ -97,6 +103,16 @@ test {
 }
 
 check.dependsOn physicsSelfTest
+
+if (sensorTest) {
+	tasks.named('runServer') {
+		doLast {
+			if (!file('build/sensor-test-server/logs/latest.log').text.contains('RAIN_SENSOR_SERVER_TEST_PASS')) {
+				throw new GradleException('Sensor/grate regression failed; inspect build/sensor-test-server/logs/latest.log')
+			}
+		}
+	}
+}
 
 if (cropTest) {
 	tasks.named('runServer') {

@@ -1,0 +1,4 @@
+{
+  "parent": "immersivefluids:block/rain_sensor",
+  "textures": { "sensor": "minecraft:block/oxidized_copper" }
+}

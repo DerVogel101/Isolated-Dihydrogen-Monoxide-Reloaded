@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "inverted=false": { "model": "immersivefluids:block/rain_sensor" },
+    "inverted=true": { "model": "immersivefluids:block/rain_sensor_inverted" }
+  }
+}

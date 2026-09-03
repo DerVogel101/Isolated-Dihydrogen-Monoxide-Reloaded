@@ -10,6 +10,11 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.FlowingFluid;
 
 public final class ModBlocks {
+    public static final Block RAIN_SENSOR = Registry.register(
+            BuiltInRegistries.BLOCK, ModBlockIds.RAIN_SENSOR,
+            new RainSensorBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
+                    .strength(1.5F).noOcclusion().setId(ModBlockIds.RAIN_SENSOR))
+    );
     public static final Block FINITE_WATER = Registry.register(
             BuiltInRegistries.BLOCK,
             ModBlockIds.FINITE_WATER,

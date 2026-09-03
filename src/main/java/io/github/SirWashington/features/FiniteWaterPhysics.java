@@ -46,6 +46,7 @@ import java.util.function.ToIntFunction;
 
 public final class FiniteWaterPhysics {
     private static final int MAX_LEVEL = 8;
+    private static final Set<Block> COPPER_GRATES = Set.copyOf(Blocks.COPPER_GRATE.asList());
     private static final ThreadLocal<BlockPos> WATER_LEVEL_WRITE_POSITION = new ThreadLocal<>();
     private static final Map<ServerLevel, Map<BlockPos, FlowCurrent>> ACTIVE_CURRENTS = new WeakHashMap<>();
     private static final Direction[] HORIZONTAL = {
@@ -361,8 +362,8 @@ public final class FiniteWaterPhysics {
         Direction direction = Direction.getNearest(dx, dy, dz, Direction.NORTH);
         BlockState fromState = level.getBlockState(from);
         BlockState toState = level.getBlockState(to);
-        VoxelShape fromShape = fromState.getCollisionShape(level, from);
-        VoxelShape toShape = toState.getCollisionShape(level, to);
+        VoxelShape fromShape = flowShape(fromState, level, from);
+        VoxelShape toShape = flowShape(toState, level, to);
         return flowBarrierLevel(
                 naturalFlow
                         ? outgoingFlowShape(fromState, fromShape, direction)
@@ -370,6 +371,11 @@ public final class FiniteWaterPhysics {
                 !naturalFlow && FiniteWaterloggedPlants.isExtinguishable(toState) ? Shapes.empty() : toShape,
                 direction
         );
+    }
+
+    private static VoxelShape flowShape(BlockState state, LevelReader level, BlockPos pos) {
+        // Grates have full player collision, but their openings admit finite water on every face.
+        return COPPER_GRATES.contains(state.getBlock()) ? Shapes.empty() : state.getCollisionShape(level, pos);
     }
 
     private static boolean canEnterConnectedDrainPath(LevelReader level, BlockPos from, BlockPos to,
@@ -395,8 +401,8 @@ public final class FiniteWaterPhysics {
             return false;
         }
         return hasCompatibleDrainHeight(
-                fromState.getCollisionShape(level, from),
-                toState.getCollisionShape(level, to),
+                flowShape(fromState, level, from),
+                flowShape(toState, level, to),
                 direction
         );
     }
