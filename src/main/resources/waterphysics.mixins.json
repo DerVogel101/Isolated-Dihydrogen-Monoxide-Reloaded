@@ -12,6 +12,7 @@
     "MixinMushroomBlock",
     "MixinNetherFungusBlock",
     "MixinPistonBaseBlock",
+    "MixinServerChunkCache",
     "MixinStateDefinitionBuilder",
     "MixinTreeGrower"
   ],

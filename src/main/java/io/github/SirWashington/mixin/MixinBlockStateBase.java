@@ -1,6 +1,7 @@
 package io.github.SirWashington.mixin;
 
 import io.github.SirWashington.features.FiniteWaterloggedPlants;
+import io.github.SirWashington.fluid.ModFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -25,7 +26,7 @@ public abstract class MixinBlockStateBase {
         BlockState state = (BlockState) (Object) this;
         int amount = FiniteWaterloggedPlants.getLevel(state);
         if (amount > 0) {
-            callbackInfo.setReturnValue(FiniteWaterloggedPlants.fluidState(amount));
+            callbackInfo.setReturnValue(FiniteWaterloggedPlants.visualFluidState(state, amount));
         }
     }
 
@@ -61,9 +62,8 @@ public abstract class MixinBlockStateBase {
     private void immersivefluids$scheduleFiniteWaterTick(
             LevelReader level, ScheduledTickAccess ticks, BlockPos pos
     ) {
-        int amount = FiniteWaterloggedPlants.getLevel((BlockState) (Object) this);
-        if (amount > 0) {
-            FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);
+        FluidState fluidState = ((BlockState) (Object) this).getFluidState();
+        if (ModFluids.isFiniteWater(fluidState.getType())) {
             ticks.scheduleTick(pos, fluidState.getType(), fluidState.getType().getTickDelay(level));
         }
     }

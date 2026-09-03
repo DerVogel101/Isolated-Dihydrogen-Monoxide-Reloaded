@@ -3,6 +3,7 @@ package io.github.SirWashington.features;
 import io.github.SirWashington.WaterPhysicsConfig;
 import com.mrcrayfish.framework.api.config.ConfigType;
 import com.mrcrayfish.framework.api.config.FrameworkConfig;
+import io.github.SirWashington.block.ModBlockTags;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FlowerPotBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
@@ -52,10 +54,13 @@ public final class FiniteWaterMathSelfTest {
         verifyPistonCurrentDirections();
         verifyFiniteWaterContactFluids();
         verifyFiniteWaterRespectsBlockFaces();
+        verifyRaisedWaterloggedVisualLevels();
+        verifyExtendedDrainPath();
         verifyDoorWaterPressure();
         verifyFiniteWaterloggedPlantCoverage();
+        verifyBlockBehaviorTags();
         verifyFiniteWaterEntityCompatibilityMixin();
-        verifyPistonPressureConfig();
+        verifyWaterPhysicsConfig();
     }
 
     private static void verifyAllHorizontalCombinations() {
@@ -416,15 +421,59 @@ public final class FiniteWaterMathSelfTest {
         }
     }
 
-    private static void verifyPistonPressureConfig() throws Exception {
+    private static void verifyWaterPhysicsConfig() throws Exception {
         var maxDepth = WaterPhysicsConfig.SERVER.pistonPressure.maxDepth;
         var maxVisited = WaterPhysicsConfig.SERVER.pistonPressure.maxVisitedWaterCells;
+        var flow = WaterPhysicsConfig.SERVER.flow;
+        var extinguishing = WaterPhysicsConfig.SERVER.extinguishing;
+        var doorPressure = WaterPhysicsConfig.SERVER.doorPressure;
+        var currents = WaterPhysicsConfig.SERVER.currents;
+        var excludedBlocks = WaterPhysicsConfig.SERVER.waterlogging.excludedBlocks;
         FrameworkConfig config = WaterPhysicsConfig.class.getField("SERVER").getAnnotation(FrameworkConfig.class);
         if (config == null || !config.id().equals("immersivefluids") || !config.name().equals("server")
                 || config.type() != ConfigType.SERVER
                 || maxDepth.getDefaultValue() != 8 || !maxDepth.isValid(1) || maxDepth.isValid(0)
-                || maxVisited.getDefaultValue() != 64 || !maxVisited.isValid(1) || maxVisited.isValid(0)) {
-            throw new AssertionError("Framework piston-pressure config is invalid");
+                || maxVisited.getDefaultValue() != 64 || !maxVisited.isValid(1) || maxVisited.isValid(0)
+                || flow.tickDelay.getDefaultValue() != 2 || !flow.tickDelay.isValid(1) || flow.tickDelay.isValid(0)
+                || flow.puddleSearchRadius.getDefaultValue() != 4 || !flow.puddleSearchRadius.isValid(0)
+                || flow.puddleSearchRadius.isValid(17)
+                || flow.extendedDrainMaxPathLength.getDefaultValue() != 32
+                || !flow.extendedDrainMaxPathLength.isValid(4) || flow.extendedDrainMaxPathLength.isValid(129)
+                || flow.extendedDrainMaxVisitedCells.getDefaultValue() != 256
+                || !flow.extendedDrainMaxVisitedCells.isValid(64)
+                || flow.extendedDrainMaxVisitedCells.isValid(4097)
+                || !flow.extendedDrainPathBlocks.getDefaultValue().equals(
+                List.of("#minecraft:slabs", "#minecraft:stairs")
+        )
+                || extinguishing.minimumLevel.getDefaultValue() != 3
+                || !extinguishing.minimumLevel.isValid(1) || extinguishing.minimumLevel.isValid(9)
+                || !doorPressure.enabled.getDefaultValue()
+                || doorPressure.requiredLevelPerHalf.getDefaultValue() != 8
+                || !doorPressure.requiredLevelPerHalf.isValid(1)
+                || doorPressure.requiredLevelPerHalf.isValid(9)
+                || !currents.enabled.getDefaultValue()
+                || currents.durationTicks.getDefaultValue() != 10
+                || currents.horizontalStrength.getDefaultValue() != 0.06D
+                || currents.upwardStrength.getDefaultValue() != 0.06D
+                || currents.downwardStrength.getDefaultValue() != 0.039D
+                || currents.maxHorizontalSpeed.getDefaultValue() != 0.7D
+                || currents.maxUpwardSpeed.getDefaultValue() != 0.7D
+                || currents.maxDownwardSpeed.getDefaultValue() != 0.3D
+                || !excludedBlocks.getDefaultValue().isEmpty()
+                || WaterPhysicsConfig.flowTickDelay() != 2
+                || WaterPhysicsConfig.puddleSearchRadius() != 4
+                || WaterPhysicsConfig.extendedDrainMaxPathLength() != 32
+                || WaterPhysicsConfig.extendedDrainMaxVisitedCells() != 256
+                || WaterPhysicsConfig.extinguishingMinimumLevel() != 3
+                || !WaterPhysicsConfig.doorPressureEnabled()
+                || WaterPhysicsConfig.doorPressureRequiredLevelPerHalf() != 8
+                || !WaterPhysicsConfig.currentsEnabled()
+                || WaterPhysicsConfig.currentDurationTicks() != 10
+                || WaterPhysicsConfig.isWaterloggingExcluded(Blocks.OAK_SLAB)
+                || !ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_slab")
+                || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_stairs")
+                || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "not an identifier")) {
+            throw new AssertionError("Framework water-physics config is invalid");
         }
 
         try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream("fabric.mod.json")) {
@@ -532,14 +581,14 @@ public final class FiniteWaterMathSelfTest {
         if (FiniteWaterloggedPlants.LEVEL.getPossibleValues().size() != 9
                 || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(0)
                 || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(8)
-                || FiniteWaterloggedPlants.EXTINGUISH_LEVEL != 3) {
+                || FiniteWaterloggedPlants.DEFAULT_EXTINGUISH_LEVEL != 3) {
             throw new AssertionError("Finite-water plant levels must cover 0 through 8");
         }
 
         var litCampfire = Blocks.CAMPFIRE.defaultBlockState()
                 .setValue(BlockStateProperties.LIT, true);
-        if (FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 2)
-                || !FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 3)) {
+        if (FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 2, true)
+                || !FiniteWaterloggedPlants.shouldExtinguish(litCampfire, 3, true)) {
             throw new AssertionError("Campfires must burn at levels 0-2 and extinguish at level 3+");
         }
     }
@@ -550,8 +599,8 @@ public final class FiniteWaterMathSelfTest {
                 lowerDoor.south(), 8,
                 lowerDoor.south().above(), 8
         );
-        if (!FiniteWaterPhysics.doorHasFullWaterOutside(
-                lowerDoor, Direction.NORTH, levelAt(outsideColumn)
+        if (!FiniteWaterPhysics.doorHasRequiredWaterOutside(
+                lowerDoor, Direction.NORTH, 8, levelAt(outsideColumn)
         )) {
             throw new AssertionError("Two full outside water cells did not open a door inward");
         }
@@ -560,17 +609,29 @@ public final class FiniteWaterMathSelfTest {
                 lowerDoor.north(), 8,
                 lowerDoor.north().above(), 8
         );
-        if (FiniteWaterPhysics.doorHasFullWaterOutside(
-                lowerDoor, Direction.NORTH, levelAt(insideColumn)
+        if (FiniteWaterPhysics.doorHasRequiredWaterOutside(
+                lowerDoor, Direction.NORTH, 8, levelAt(insideColumn)
         )) {
             throw new AssertionError("Water on the inside pushed a door open outward");
         }
 
         Map<BlockPos, Integer> incompleteColumn = Map.of(lowerDoor.south(), 8);
-        if (FiniteWaterPhysics.doorHasFullWaterOutside(
-                lowerDoor, Direction.NORTH, levelAt(incompleteColumn)
+        if (FiniteWaterPhysics.doorHasRequiredWaterOutside(
+                lowerDoor, Direction.NORTH, 8, levelAt(incompleteColumn)
         )) {
             throw new AssertionError("One full outside water cell opened both door halves");
+        }
+
+        Map<BlockPos, Integer> configurableColumn = Map.of(
+                lowerDoor.south(), 6,
+                lowerDoor.south().above(), 6
+        );
+        if (!FiniteWaterPhysics.doorHasRequiredWaterOutside(
+                lowerDoor, Direction.NORTH, 6, levelAt(configurableColumn)
+        ) || FiniteWaterPhysics.doorHasRequiredWaterOutside(
+                lowerDoor, Direction.NORTH, 7, levelAt(configurableColumn)
+        )) {
+            throw new AssertionError("Door water-pressure threshold is not configurable");
         }
     }
 
@@ -598,7 +659,7 @@ public final class FiniteWaterMathSelfTest {
             throw new AssertionError("Finite-water barrier height does not match the visible block shape");
         }
         if (FiniteWaterPhysics.flowBarrierLevel(
-                FiniteWaterPhysics.outgoingFlowShape(bottomSlabState, bottomSlab, Direction.NORTH),
+                FiniteWaterPhysics.outgoingFlowShape(bottomSlab, Direction.NORTH, true),
                 air, Direction.NORTH
         ) != 0
                 || FiniteWaterPhysics.flowBarrierLevel(air, bottomSlab, Direction.NORTH) != 4
@@ -611,13 +672,32 @@ public final class FiniteWaterMathSelfTest {
 
         boolean stairHasHalfBarrier = false;
         boolean stairHasFullBarrier = false;
+        boolean extendedStairKeepsBack = false;
+        boolean extendedStairOpensPartialFace = false;
+        boolean slabMatchesStairEntry = false;
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             int barrier = FiniteWaterPhysics.flowBarrierLevel(bottomStairs, air, direction);
             stairHasHalfBarrier |= barrier == 4;
             stairHasFullBarrier |= barrier == 8;
+            int extendedBarrier = FiniteWaterPhysics.flowBarrierLevel(
+                    FiniteWaterPhysics.outgoingFlowShape(bottomStairs, direction, false, true),
+                    air,
+                    direction
+            );
+            extendedStairKeepsBack |= barrier == 8 && extendedBarrier == 8;
+            extendedStairOpensPartialFace |= barrier == 4 && extendedBarrier == 0;
+            int stairEntry = FiniteWaterPhysics.flowBarrierLevel(air, bottomStairs, direction);
+            slabMatchesStairEntry |= stairEntry == 4
+                    && FiniteWaterPhysics.hasCompatibleDrainHeight(bottomSlab, bottomStairs, direction);
         }
-        if (!stairHasHalfBarrier || !stairHasFullBarrier) {
-            throw new AssertionError("Bottom stairs do not expose their half-height and full-height barriers");
+        if (!stairHasHalfBarrier || !stairHasFullBarrier
+                || !extendedStairKeepsBack || !extendedStairOpensPartialFace
+                || !slabMatchesStairEntry
+                || !FiniteWaterPhysics.hasCompatibleDrainHeight(bottomSlab, Shapes.empty(), Direction.NORTH)
+                || FiniteWaterPhysics.hasCompatibleDrainHeight(
+                        bottomSlab, Shapes.box(0.0D, 0.0D, 0.0D, 1.0D, 0.75D, 1.0D), Direction.NORTH)
+                || FiniteWaterPhysics.hasCompatibleDrainHeight(topSlab, bottomSlab, Direction.NORTH)) {
+            throw new AssertionError("Extended stairs do not preserve their back while opening partial faces");
         }
 
         int closedDoorMask = horizontalFlowMask(
@@ -652,6 +732,60 @@ public final class FiniteWaterMathSelfTest {
         );
         if (blockedPlan != null) {
             throw new AssertionError("Piston pressure crossed a block face that stops water");
+        }
+    }
+
+    private static void verifyRaisedWaterloggedVisualLevels() {
+        var bottomSlab = Blocks.OAK_SLAB.defaultBlockState();
+        var topSlab = bottomSlab.setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
+        var bottomStairs = Blocks.OAK_STAIRS.defaultBlockState();
+        var topStairs = bottomStairs.setValue(BlockStateProperties.HALF, Half.TOP);
+        int[] expected = {0, 5, 5, 6, 6, 7, 7, 8, 8};
+        for (int amount = 0; amount <= 8; amount++) {
+            if (FiniteWaterloggedPlants.visualFluidLevel(bottomSlab, amount) != expected[amount]
+                    || FiniteWaterloggedPlants.visualFluidLevel(bottomStairs, amount) != expected[amount]
+                    || FiniteWaterloggedPlants.visualFluidLevel(topSlab, amount) != amount
+                    || FiniteWaterloggedPlants.visualFluidLevel(topStairs, amount) != amount) {
+                throw new AssertionError("Waterlogged slab/stair visual level mapping is incorrect at " + amount);
+            }
+        }
+    }
+
+    private static void verifyExtendedDrainPath() {
+        BlockPos start = BlockPos.ZERO;
+        BlockPos normalEdge = start.east(4);
+        BlockPos extended = start.east(5);
+        if (!FiniteWaterPhysics.mayTraverseDrainPath(start, normalEdge, 4, 4, 32, pos -> false)
+                || FiniteWaterPhysics.mayTraverseDrainPath(start, extended, 5, 4, 32, pos -> false)
+                || !FiniteWaterPhysics.mayTraverseDrainPath(start, extended, 5, 4, 32, pos -> true)
+                || FiniteWaterPhysics.mayTraverseDrainPath(start, extended, 33, 4, 32, pos -> true)) {
+            throw new AssertionError("Extended drain paths ignored their radius, tag, or path-length limit");
+        }
+    }
+
+    private static void verifyBlockBehaviorTags() throws Exception {
+        verifyTagResource("extended_drain_path");
+        verifyTagResource("ignores_own_shape_for_outflow");
+        verifyTagResource("water_pressure_openable_doors", "#minecraft:wooden_doors");
+        verifyTagResource("finite_waterlogging_excluded", "#minecraft:walls");
+        verifyTagResource(
+                "finite_water_extinguishable",
+                "#minecraft:campfires", "#minecraft:candles", "#minecraft:candle_cakes"
+        );
+    }
+
+    private static void verifyTagResource(String name, String... requiredValues) throws Exception {
+        String resource = "data/immersivefluids/tags/block/" + name + ".json";
+        try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) {
+                throw new AssertionError("Missing block tag: " + resource);
+            }
+            String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            for (String requiredValue : requiredValues) {
+                if (!json.contains('"' + requiredValue + '"')) {
+                    throw new AssertionError(resource + " is missing " + requiredValue);
+                }
+            }
         }
     }
 

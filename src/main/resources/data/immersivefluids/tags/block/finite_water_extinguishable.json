@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:campfires",
+    "#minecraft:candles",
+    "#minecraft:candle_cakes"
+  ]
+}

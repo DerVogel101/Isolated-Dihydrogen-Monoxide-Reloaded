@@ -40,16 +40,22 @@ public abstract class MixinLevel {
                 amount = FiniteWaterloggedPlants.getLevel(replacement);
             } else {
                 amount = FiniteWaterloggedPlants.getLevel(previous);
+                if (amount < 0) {
+                    return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
+                }
                 if (amount == 0 && !previous.getFluidState().isEmpty()) {
                     return replacement;
                 }
             }
         } else {
-            FluidState previousFluid = previous.getFluidState();
-            if (!ModFluids.isFiniteWater(previousFluid.getType())) {
-                return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
+            amount = FiniteWaterloggedPlants.getLevel(previous);
+            if (amount < 0) {
+                FluidState previousFluid = previous.getFluidState();
+                if (!ModFluids.isFiniteWater(previousFluid.getType())) {
+                    return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
+                }
+                amount = previousFluid.getAmount();
             }
-            amount = previousFluid.getAmount();
         }
 
         BlockState result = FiniteWaterloggedPlants.withLevel(replacement, amount);

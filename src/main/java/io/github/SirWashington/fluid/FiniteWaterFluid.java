@@ -1,5 +1,6 @@
 package io.github.SirWashington.fluid;
 
+import io.github.SirWashington.WaterPhysicsConfig;
 import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.features.FiniteWaterPhysics;
 import io.github.SirWashington.item.ModItems;
@@ -86,7 +87,7 @@ public abstract class FiniteWaterFluid extends FlowingFluid {
 
     @Override
     protected int getSlopeFindDistance(LevelReader level) {
-        return 4;
+        return WaterPhysicsConfig.puddleSearchRadius();
     }
 
     @Override
@@ -101,7 +102,7 @@ public abstract class FiniteWaterFluid extends FlowingFluid {
 
     @Override
     public int getTickDelay(LevelReader level) {
-        return 2;
+        return WaterPhysicsConfig.flowTickDelay();
     }
 
     @Override

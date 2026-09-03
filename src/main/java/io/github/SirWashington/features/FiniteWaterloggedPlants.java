@@ -1,18 +1,21 @@
 package io.github.SirWashington.features;
 
+import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.block.ModBlockTags;
 import io.github.SirWashington.fluid.ModFluids;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.material.FluidState;
 
 public final class FiniteWaterloggedPlants {
     public static final IntegerProperty LEVEL = IntegerProperty.create("finite_water_level", 0, 8);
-    public static final int EXTINGUISH_LEVEL = 3;
+    public static final int DEFAULT_EXTINGUISH_LEVEL = 3;
 
     private FiniteWaterloggedPlants() {
     }
@@ -97,6 +100,8 @@ public final class FiniteWaterloggedPlants {
 
     public static boolean canHoldFiniteWater(BlockState state) {
         return state.hasProperty(LEVEL)
+                && !ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)
+                && !WaterPhysicsConfig.isWaterloggingExcluded(state.getBlock())
                 && (!state.hasProperty(BlockStateProperties.SLAB_TYPE)
                 || state.getValue(BlockStateProperties.SLAB_TYPE) != SlabType.DOUBLE);
     }
@@ -105,13 +110,28 @@ public final class FiniteWaterloggedPlants {
         return canHoldFiniteWater(state) ? state.getValue(LEVEL) : -1;
     }
 
+    public static int visualFluidLevel(BlockState state, int amount) {
+        if (amount <= 0 || amount == 8 || !isUpwardHalfBlock(state)) {
+            return amount;
+        }
+        // Fluid height is amount / 9, so add one to the requested eighth-based visual level.
+        return 4 + (amount + 1) / 2;
+    }
+
+    private static boolean isUpwardHalfBlock(BlockState state) {
+        return state.getBlock() instanceof SlabBlock
+                && state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.BOTTOM
+                || state.getBlock() instanceof StairBlock
+                && state.getValue(BlockStateProperties.HALF) == Half.BOTTOM;
+    }
+
     public static BlockState withLevel(BlockState state, int amount) {
         BlockState result = state.setValue(LEVEL, amount);
         boolean extinguishable = isExtinguishable(result);
         if (result.hasProperty(BlockStateProperties.WATERLOGGED)) {
             result = result.setValue(
                     BlockStateProperties.WATERLOGGED,
-                    amount > 0 && (!extinguishable || amount >= EXTINGUISH_LEVEL)
+                    amount > 0 && (!extinguishable || amount >= WaterPhysicsConfig.extinguishingMinimumLevel())
             );
         }
         if (shouldExtinguish(result, amount)) {
@@ -121,20 +141,30 @@ public final class FiniteWaterloggedPlants {
     }
 
     static boolean shouldExtinguish(BlockState state, int amount) {
-        return isExtinguishable(state)
-                && amount >= EXTINGUISH_LEVEL
+        return shouldExtinguish(state, amount, isExtinguishable(state));
+    }
+
+    static boolean shouldExtinguish(BlockState state, int amount, boolean taggedExtinguishable) {
+        return taggedExtinguishable
+                && amount >= WaterPhysicsConfig.extinguishingMinimumLevel()
                 && state.hasProperty(BlockStateProperties.LIT)
                 && state.getValue(BlockStateProperties.LIT);
     }
 
     public static boolean isExtinguishable(BlockState state) {
-        return state.getBlock() instanceof AbstractCandleBlock
-                || state.getBlock() instanceof CampfireBlock;
+        return state.hasProperty(BlockStateProperties.LIT)
+                && ModBlockTags.contains(ModBlockTags.FINITE_WATER_EXTINGUISHABLE, state);
     }
 
     public static FluidState fluidState(int amount) {
         return amount == 8
                 ? ModFluids.FINITE_WATER.getSource(false)
                 : ModFluids.FLOWING_FINITE_WATER.getFlowing(amount, false);
+    }
+
+    public static FluidState visualFluidState(BlockState state, int amount) {
+        return amount == 8
+                ? ModFluids.FINITE_WATER.getSource(false)
+                : ModFluids.FLOWING_FINITE_WATER.getFlowing(visualFluidLevel(state, amount), false);
     }
 }

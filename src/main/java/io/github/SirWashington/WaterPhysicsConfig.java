@@ -1,9 +1,19 @@
 package io.github.SirWashington;
 
+import com.mrcrayfish.framework.api.config.AbstractProperty;
 import com.mrcrayfish.framework.api.config.ConfigProperty;
 import com.mrcrayfish.framework.api.config.ConfigType;
+import com.mrcrayfish.framework.api.config.BoolProperty;
+import com.mrcrayfish.framework.api.config.DoubleProperty;
 import com.mrcrayfish.framework.api.config.FrameworkConfig;
 import com.mrcrayfish.framework.api.config.IntProperty;
+import com.mrcrayfish.framework.api.config.ListProperty;
+import io.github.SirWashington.block.ModBlockTags;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.List;
 
 public final class WaterPhysicsConfig {
     @FrameworkConfig(id = WaterPhysics.MODID, name = "server", type = ConfigType.SERVER)
@@ -13,16 +23,177 @@ public final class WaterPhysicsConfig {
     }
 
     public static int pistonPressureMaxDepth() {
-        return SERVER.pistonPressure.maxDepth.get();
+        return get(SERVER.pistonPressure.maxDepth);
     }
 
     public static int pistonPressureMaxVisitedWaterCells() {
-        return SERVER.pistonPressure.maxVisitedWaterCells.get();
+        return get(SERVER.pistonPressure.maxVisitedWaterCells);
+    }
+
+    public static int flowTickDelay() {
+        return get(SERVER.flow.tickDelay);
+    }
+
+    public static int puddleSearchRadius() {
+        return get(SERVER.flow.puddleSearchRadius);
+    }
+
+    public static int extendedDrainMaxPathLength() {
+        return Math.max(puddleSearchRadius(), get(SERVER.flow.extendedDrainMaxPathLength));
+    }
+
+    public static int extendedDrainMaxVisitedCells() {
+        return get(SERVER.flow.extendedDrainMaxVisitedCells);
+    }
+
+    public static boolean isConfiguredExtendedDrainPath(BlockState state) {
+        return get(SERVER.flow.extendedDrainPathBlocks).stream()
+                .anyMatch(selector -> ModBlockTags.matchesSelector(state, selector));
+    }
+
+    public static int extinguishingMinimumLevel() {
+        return get(SERVER.extinguishing.minimumLevel);
+    }
+
+    public static boolean doorPressureEnabled() {
+        return get(SERVER.doorPressure.enabled);
+    }
+
+    public static int doorPressureRequiredLevelPerHalf() {
+        return get(SERVER.doorPressure.requiredLevelPerHalf);
+    }
+
+    public static boolean currentsEnabled() {
+        return get(SERVER.currents.enabled);
+    }
+
+    public static int currentDurationTicks() {
+        return get(SERVER.currents.durationTicks);
+    }
+
+    public static double horizontalCurrentStrength() {
+        return get(SERVER.currents.horizontalStrength);
+    }
+
+    public static double upwardCurrentStrength() {
+        return get(SERVER.currents.upwardStrength);
+    }
+
+    public static double downwardCurrentStrength() {
+        return get(SERVER.currents.downwardStrength);
+    }
+
+    public static double maxHorizontalCurrentSpeed() {
+        return get(SERVER.currents.maxHorizontalSpeed);
+    }
+
+    public static double maxUpwardCurrentSpeed() {
+        return get(SERVER.currents.maxUpwardSpeed);
+    }
+
+    public static double maxDownwardCurrentSpeed() {
+        return get(SERVER.currents.maxDownwardSpeed);
+    }
+
+    public static boolean isWaterloggingExcluded(Block block) {
+        String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+        return get(SERVER.waterlogging.excludedBlocks).contains(blockId);
+    }
+
+    private static <T> T get(AbstractProperty<T> property) {
+        try {
+            return property.get();
+        } catch (IllegalStateException ignored) {
+            return property.getDefaultValue();
+        }
     }
 
     public static final class Values {
+        @ConfigProperty(name = "flow", comment = "Finite-water flow timing and drain searches")
+        public final Flow flow = new Flow();
+
+        @ConfigProperty(name = "extinguishing", comment = "Finite-water extinguishing behavior")
+        public final Extinguishing extinguishing = new Extinguishing();
+
+        @ConfigProperty(name = "door_pressure", comment = "Water pressure opening configured doors")
+        public final DoorPressure doorPressure = new DoorPressure();
+
+        @ConfigProperty(name = "currents", comment = "Entity currents produced by moving finite water")
+        public final Currents currents = new Currents();
+
+        @ConfigProperty(name = "waterlogging", comment = "Runtime exclusions for supported waterloggable blocks")
+        public final Waterlogging waterlogging = new Waterlogging();
+
         @ConfigProperty(name = "piston_pressure", comment = "Limits for piston pressure searches")
         public final PistonPressure pistonPressure = new PistonPressure();
+    }
+
+    public static final class Flow {
+        @ConfigProperty(name = "tick_delay", comment = "Ticks between finite-water updates")
+        public final IntProperty tickDelay = IntProperty.create(2, 1, 20);
+
+        @ConfigProperty(name = "puddle_search_radius", comment = "Normal horizontal radius used to find a downward outlet")
+        public final IntProperty puddleSearchRadius = IntProperty.create(4, 0, 16);
+
+        @ConfigProperty(name = "extended_drain_max_path_length", comment = "Maximum path length when the extended_drain_path block tag is used")
+        public final IntProperty extendedDrainMaxPathLength = IntProperty.create(32, 4, 128);
+
+        @ConfigProperty(name = "extended_drain_max_visited_cells", comment = "Maximum cells inspected by one drain search")
+        public final IntProperty extendedDrainMaxVisitedCells = IntProperty.create(256, 64, 4096);
+
+        @ConfigProperty(name = "extended_drain_path_blocks", comment = "Block IDs or #block tags allowed to extend drain searches")
+        public final ListProperty<String> extendedDrainPathBlocks = ListProperty.create(
+                ListProperty.STRING,
+                () -> List.of("#minecraft:slabs", "#minecraft:stairs")
+        );
+    }
+
+    public static final class Extinguishing {
+        @ConfigProperty(name = "minimum_level", comment = "Minimum finite-water level that extinguishes tagged blocks")
+        public final IntProperty minimumLevel = IntProperty.create(3, 1, 8);
+    }
+
+    public static final class DoorPressure {
+        @ConfigProperty(name = "enabled", comment = "Whether outside water pressure can open tagged doors")
+        public final BoolProperty enabled = BoolProperty.create(true);
+
+        @ConfigProperty(name = "required_level_per_half", comment = "Required outside finite-water level beside each door half")
+        public final IntProperty requiredLevelPerHalf = IntProperty.create(8, 1, 8);
+    }
+
+    public static final class Currents {
+        @ConfigProperty(name = "enabled", comment = "Whether moving finite water pushes entities")
+        public final BoolProperty enabled = BoolProperty.create(true);
+
+        @ConfigProperty(name = "duration_ticks", comment = "How long a recorded current remains active")
+        public final IntProperty durationTicks = IntProperty.create(10, 1, 100);
+
+        @ConfigProperty(name = "horizontal_strength", comment = "Horizontal acceleration from a full-level transfer")
+        public final DoubleProperty horizontalStrength = DoubleProperty.create(0.06D, 0.0D, 1.0D);
+
+        @ConfigProperty(name = "upward_strength", comment = "Upward acceleration from a full-level transfer")
+        public final DoubleProperty upwardStrength = DoubleProperty.create(0.06D, 0.0D, 1.0D);
+
+        @ConfigProperty(name = "downward_strength", comment = "Downward acceleration magnitude from a full-level transfer")
+        public final DoubleProperty downwardStrength = DoubleProperty.create(0.039D, 0.0D, 1.0D);
+
+        @ConfigProperty(name = "max_horizontal_speed", comment = "Maximum horizontal speed caused by currents")
+        public final DoubleProperty maxHorizontalSpeed = DoubleProperty.create(0.7D, 0.0D, 2.0D);
+
+        @ConfigProperty(name = "max_upward_speed", comment = "Maximum upward speed caused by currents")
+        public final DoubleProperty maxUpwardSpeed = DoubleProperty.create(0.7D, 0.0D, 2.0D);
+
+        @ConfigProperty(name = "max_downward_speed", comment = "Maximum downward speed magnitude caused by currents")
+        public final DoubleProperty maxDownwardSpeed = DoubleProperty.create(0.3D, 0.0D, 2.0D);
+    }
+
+    public static final class Waterlogging {
+        @ConfigProperty(
+                name = "excluded_blocks",
+                comment = "Supported block IDs that must not hold finite water; requires a world restart",
+                worldRestart = true
+        )
+        public final ListProperty<String> excludedBlocks = ListProperty.create(ListProperty.STRING);
     }
 
     public static final class PistonPressure {
