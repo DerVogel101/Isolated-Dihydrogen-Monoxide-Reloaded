@@ -6,4 +6,3 @@
 6. Rain Sensor
 7. make water compatible with shaders
    - at least iris with complementary unbound and integrated pbr+
-8. Depth Strider, lessens water push effect

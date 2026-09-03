@@ -82,6 +82,17 @@ public final class FiniteWaterMathSelfTest {
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        for (int level = -1; level <= 4; level++) {
+            double expected = switch (level) {
+                case 1 -> 47.0D / 60.0D;
+                case 2 -> 17.0D / 30.0D;
+                case 3, 4 -> 0.35D;
+                default -> 1.0D;
+            };
+            if (Math.abs(FiniteWaterPhysics.depthStriderCurrentMultiplier(level) - expected) > 1.0E-12D) {
+                throw new AssertionError("Incorrect Depth Strider current multiplier at level " + level);
+            }
+        }
         verifyAllHorizontalCombinations();
         verifySettledWaterStaysSettled();
         verifyBarrierLimitedEqualization();

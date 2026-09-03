@@ -6,6 +6,7 @@ import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -13,6 +14,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.AbstractCandleBlock;
 import net.minecraft.world.level.block.Block;
@@ -531,6 +535,12 @@ public final class FiniteWaterPhysics {
 
     private static void pushWithCurrent(Entity entity, Vec3 units) {
         Vec3 strength = currentStrength(units);
+        if (entity instanceof LivingEntity living) {
+            var depthStrider = entity.registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
+                    .getOrThrow(Enchantments.DEPTH_STRIDER);
+            strength = strength.scale(depthStriderCurrentMultiplier(
+                    EnchantmentHelper.getEnchantmentLevel(depthStrider, living)));
+        }
         Vec3 movement = entity.getDeltaMovement();
         double nextX = cappedHorizontalSpeed(movement.x(), strength.x());
         double nextY = cappedVerticalSpeed(movement.y(), strength.y());
@@ -548,6 +558,11 @@ public final class FiniteWaterPhysics {
                 ? WaterPhysicsConfig.upwardCurrentStrength()
                 : WaterPhysicsConfig.downwardCurrentStrength();
         return scale * limitedUnits / MAX_LEVEL;
+    }
+
+    static double depthStriderCurrentMultiplier(int level) {
+        // Vanilla levels I-III reduce finite-water push linearly, up to 65%.
+        return 1.0D - 0.65D * Math.clamp(level, 0, 3) / 3.0D;
     }
 
     static Vec3 currentStrength(Vec3 units) {
