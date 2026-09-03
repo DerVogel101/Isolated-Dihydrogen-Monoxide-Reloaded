@@ -15,6 +15,13 @@ Global physics values are stored in `config/immersivefluids.server.toml` and can
 through Configured. They cover flow timing, normal and extended drain-search limits, extinguishing,
 door pressure, entity-current strength and speed limits, waterlogging exclusions, and piston pressure.
 
+Hanging pointed dripstone supplied by exactly eight finite-water units above its support block
+produces one finite-water unit per successful drip, without consuming the source. Drips create
+puddles in air above the first obstruction or add to an existing partial puddle (up to eight).
+The vanilla drip-path limits apply; cauldrons and other fluids are not converted.
+`dripstone.enabled` disables this feature. `dripstone.fill_chance` controls the chance per random
+tick, defaulting to vanilla water-cauldron rarity (`0.17578125`); `0` stops accumulation.
+
 `waterlogging.excluded_blocks` accepts block IDs that already support finite water, for example
 `["minecraft:oak_slab"]`. It cannot add the `finite_water_level` property to otherwise unsupported
 blocks because block states are created before the server config is loaded.

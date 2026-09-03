@@ -26,6 +26,14 @@ public final class WaterPhysicsConfig {
         return get(SERVER.pistonPressure.maxDepth);
     }
 
+    public static boolean dripstoneEnabled() {
+        return get(SERVER.dripstone.enabled);
+    }
+
+    public static double dripstoneFillChance() {
+        return get(SERVER.dripstone.fillChance);
+    }
+
     public static int pistonPressureMaxVisitedWaterCells() {
         return get(SERVER.pistonPressure.maxVisitedWaterCells);
     }
@@ -109,6 +117,9 @@ public final class WaterPhysicsConfig {
     }
 
     public static final class Values {
+        @ConfigProperty(name = "dripstone", comment = "Finite-water production from hanging pointed dripstone")
+        public final Dripstone dripstone = new Dripstone();
+
         @ConfigProperty(name = "flow", comment = "Finite-water flow timing and drain searches")
         public final Flow flow = new Flow();
 
@@ -146,6 +157,14 @@ public final class WaterPhysicsConfig {
                 ListProperty.STRING,
                 () -> List.of("#minecraft:slabs", "#minecraft:stairs")
         );
+    }
+
+    public static final class Dripstone {
+        @ConfigProperty(name = "enabled", comment = "Allow level-8 finite water above the support block to supply drips")
+        public final BoolProperty enabled = BoolProperty.create(true);
+
+        @ConfigProperty(name = "fill_chance", comment = "Chance per random tick to add one finite-water unit below; default matches vanilla water cauldron filling; zero disables accumulation")
+        public final DoubleProperty fillChance = DoubleProperty.create(0.17578125D, 0.0D, 1.0D);
     }
 
     public static final class Extinguishing {

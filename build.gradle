@@ -8,6 +8,10 @@ version = project.mod_version
 group = project.maven_group
 def expandedModVersion = version
 def licenseArchiveName = project.archives_base_name
+def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
+if (dripstoneTest) {
+	sourceSets.main.java.srcDir 'src/serverTest/java'
+}
 
 repositories {
 	exclusiveContent {
@@ -27,6 +31,11 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
+		if (dripstoneTest) {
+			server {
+				runDir 'build/dripstone-test-server'
+			}
+		}
 		client {
 			ideConfigGenerated false
 		}
@@ -56,9 +65,14 @@ dependencies {
 
 processResources {
 	inputs.property "version", expandedModVersion
+	inputs.property "dripstoneTest", dripstoneTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+		if (dripstoneTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DripstoneServerTest"') }
+		}
 	}
 }
 
@@ -77,6 +91,16 @@ test {
 }
 
 check.dependsOn physicsSelfTest
+
+if (dripstoneTest) {
+	tasks.named('runServer') {
+		doLast {
+			if (!file('build/dripstone-test-server/logs/latest.log').text.contains('DRIPSTONE_SERVER_TEST_PASS')) {
+				throw new GradleException('Dripstone server regression failed; inspect build/dripstone-test-server/logs/latest.log')
+			}
+		}
+	}
+}
 
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
