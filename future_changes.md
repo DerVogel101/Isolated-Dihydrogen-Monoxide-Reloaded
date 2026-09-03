@@ -1,12 +1,10 @@
-1. Make Sponges work
-2. Water pump, Water Converter
-3. Crop fertilization level <3
-4. Rain
-5. Dripstone drips
-6. Needs Snow and Cold interaction
-7. Rain Sensor
-8. Be Able to swim if head is completely submerged
-9. Finite water needs water flowing sounds
-10. make water compatible with shaders
-    - at least iris with complementary unbound and integrated pbr+
-11. Depth Strider, lessens water push effect
+1. Water pump, Water Converter
+2. Crop fertilization level <3
+3. Rain
+4. Dripstone drips
+5. Needs Snow and Cold interaction
+6. Rain Sensor
+7. Finite water needs water flowing sounds
+8. make water compatible with shaders
+   - at least iris with complementary unbound and integrated pbr+
+9. Depth Strider, lessens water push effect

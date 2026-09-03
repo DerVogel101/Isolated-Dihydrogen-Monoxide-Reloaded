@@ -9,10 +9,13 @@
     "MixinBucketItem",
     "MixinEntity",
     "MixinLevel",
+    "MixinMangroveRootPlacer",
     "MixinMushroomBlock",
     "MixinNetherFungusBlock",
     "MixinPistonBaseBlock",
+    "MixinPlayer",
     "MixinServerChunkCache",
+    "MixinSpongeBlock",
     "MixinStateDefinitionBuilder",
     "MixinTreeGrower"
   ],

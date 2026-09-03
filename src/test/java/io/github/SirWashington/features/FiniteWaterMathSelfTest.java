@@ -810,8 +810,11 @@ public final class FiniteWaterMathSelfTest {
                     || !json.contains("\"MixinBlockStateBase\"")
                     || !json.contains("\"MixinBucketItem\"")
                     || !json.contains("\"MixinClientLevel\"")
+                    || !json.contains("\"MixinMangroveRootPlacer\"")
                     || !json.contains("\"MixinMushroomBlock\"")
                     || !json.contains("\"MixinNetherFungusBlock\"")
+                    || !json.contains("\"MixinPlayer\"")
+                    || !json.contains("\"MixinSpongeBlock\"")
                     || !json.contains("\"MixinTreeGrower\"")
                     || !json.contains("\"MixinEntity\"")
                     || !json.contains("\"MixinLevel\"")
@@ -824,6 +827,9 @@ public final class FiniteWaterMathSelfTest {
         Class.forName("io.github.SirWashington.mixin.MixinBucketItem");
         Class.forName("io.github.SirWashington.mixin.MixinEntity");
         Class.forName("io.github.SirWashington.mixin.MixinLevel");
+        Class.forName("io.github.SirWashington.mixin.MixinMangroveRootPlacer");
+        Class.forName("io.github.SirWashington.mixin.MixinPlayer");
+        Class.forName("io.github.SirWashington.mixin.MixinSpongeBlock");
         Class.forName("io.github.SirWashington.mixin.MixinStateDefinitionBuilder");
     }
 
