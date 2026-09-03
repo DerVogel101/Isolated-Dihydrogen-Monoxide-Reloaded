@@ -56,6 +56,7 @@ public final class FiniteWaterPhysics {
 
     public static void initialize() {
         ServerTickEvents.END_LEVEL_TICK.register(FiniteWaterPhysics::tickCurrents);
+        ServerTickEvents.END_LEVEL_TICK.register(FiniteWaterSounds::tick);
     }
 
     public static int getWaterLevel(LevelReader level, BlockPos pos) {
@@ -455,11 +456,13 @@ public final class FiniteWaterPhysics {
     }
 
     static void applyCurrent(ServerLevel level, BlockPos pos, Vec3 units) {
+        FiniteWaterSounds.record(level, pos, Math.abs(units.x()) + Math.abs(units.y()) + Math.abs(units.z()));
         recordCurrent(level, pos, units);
     }
 
     private static void applyCurrent(ServerLevel level, BlockPos from, BlockPos to, int movedUnits) {
         if (movedUnits > 0) {
+            FiniteWaterSounds.record(level, from, movedUnits);
             Vec3 units = new Vec3(
                     Integer.signum(to.getX() - from.getX()) * movedUnits,
                     Integer.signum(to.getY() - from.getY()) * movedUnits,

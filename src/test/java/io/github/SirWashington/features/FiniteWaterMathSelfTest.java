@@ -28,6 +28,57 @@ import java.util.Set;
 import java.util.function.ToIntFunction;
 
 public final class FiniteWaterMathSelfTest {
+    private static void verifyFlowSounds() {
+        Map<BlockPos, FiniteWaterSounds.Flow> flows = new HashMap<>();
+        BlockPos pos = new BlockPos(-1, 64, -1);
+        FiniteWaterSounds.accumulate(flows, pos, 0);
+        if (!flows.isEmpty() || FiniteWaterSounds.volume(0) != 0) {
+            throw new AssertionError("No movement must stay silent");
+        }
+        FiniteWaterSounds.accumulate(flows, pos, 1);
+        FiniteWaterSounds.accumulate(flows, pos.west(), 7);
+        var flow = flows.values().iterator().next();
+        if (flows.size() != 1 || flow.units() != 8 || !flow.pos().equals(pos)) {
+            throw new AssertionError("Nearby flow must combine at a real transfer position");
+        }
+        FiniteWaterSounds.accumulate(flows, pos, 100);
+        FiniteWaterSounds.accumulate(flows, pos.east(), 1);
+        if (flows.size() != 2 || flows.get(new BlockPos(-1, 16, -1)).units() != 64) {
+            throw new AssertionError("Flow areas must separate and cap accumulated volume");
+        }
+        float previous = 0;
+        for (int units = 1; units <= 64; units++) {
+            float volume = FiniteWaterSounds.volume(units);
+            if (volume <= previous || volume > 1F) {
+                throw new AssertionError("Flow sound must grow with movement and respect the volume cap");
+            }
+            previous = volume;
+        }
+        if (FiniteWaterSounds.volume(1000) != previous) {
+            throw new AssertionError("Large flows must respect the volume cap");
+        }
+        if (FiniteWaterSounds.volume(1) > 0.08F
+                || FiniteWaterSounds.volume(64) != 1F
+                || FiniteWaterSounds.volume(64) < 3 * FiniteWaterSounds.volume(8)) {
+            throw new AssertionError("Large flows must be noticeably louder while trickles stay gentle");
+        }
+        if (FiniteWaterSounds.soundChance(0) != 0) {
+            throw new AssertionError("Idle water must never start a sound");
+        }
+        for (int units = 1; units <= 64; units++) {
+            if (FiniteWaterSounds.soundChance(units) <= FiniteWaterSounds.soundChance(units - 1)
+                    || FiniteWaterSounds.pitch(units, 0.5F) >= FiniteWaterSounds.pitch(units - 1, 0.5F)) {
+                throw new AssertionError("Heavier flow must sound denser and deeper");
+            }
+        }
+        if (FiniteWaterSounds.soundChance(1000) != 13F / 64
+                || FiniteWaterSounds.pitch(1000, 0) < 0.3F
+                || FiniteWaterSounds.pitch(1, 1) > 1.3F
+                || FiniteWaterSounds.pitch(64, 1) >= FiniteWaterSounds.pitch(1, 0)) {
+            throw new AssertionError("Rushing sound must stay bounded and distinct from a trickle");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
@@ -51,6 +102,7 @@ public final class FiniteWaterMathSelfTest {
         verifyPistonPressureDoesNotLoadChunks();
         verifyPistonPressureAvoidsOccupiedCells();
         verifyCurrentStrength();
+        verifyFlowSounds();
         verifyPistonCurrentDirections();
         verifyFiniteWaterContactFluids();
         verifyFiniteWaterRespectsBlockFaces();
