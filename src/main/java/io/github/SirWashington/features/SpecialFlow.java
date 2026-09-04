@@ -40,7 +40,8 @@ public class SpecialFlow {
                 pos -> level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4),
                 pistonOccupiedPositions,
                 flowTransfers,
-                (from, to) -> FiniteWaterPhysics.canFlowBetween(level, from, to)
+                (from, to) -> FiniteWaterPhysics.canFlowBetween(level, from, to),
+                pos -> FiniteWaterPhysics.getWaterCapacity(level, pos)
         );
         if (plannedLevels == null) {
             return false;
@@ -94,6 +95,17 @@ public class SpecialFlow {
                                             Set<BlockPos> pistonOccupiedPositions,
                                             Map<BlockPos, Vec3> flowTransfers,
                                             BiPredicate<BlockPos, BlockPos> canFlowBetween) {
+        return planPush(waterPositions, pistonDirection, levelAt, maxDepth, maxVisitedWaterCells,
+                isLoaded, pistonOccupiedPositions, flowTransfers, canFlowBetween, pos -> MAX_WATER_LEVEL);
+    }
+
+    static Map<BlockPos, Integer> planPush(List<BlockPos> waterPositions, Direction pistonDirection,
+                                            ToIntFunction<BlockPos> levelAt, int maxDepth,
+                                            int maxVisitedWaterCells, Predicate<BlockPos> isLoaded,
+                                            Set<BlockPos> pistonOccupiedPositions,
+                                            Map<BlockPos, Vec3> flowTransfers,
+                                            BiPredicate<BlockPos, BlockPos> canFlowBetween,
+                                            ToIntFunction<BlockPos> capacityAt) {
         if (maxDepth <= 0 || maxVisitedWaterCells <= 0) {
             throw new IllegalArgumentException("Piston-pressure limits must be positive");
         }
@@ -133,7 +145,7 @@ public class SpecialFlow {
             targets.sort(Comparator.comparingInt(Target::priority).thenComparingInt(Target::sequence));
             for (Target target : targets) {
                 int previousVolume = volume;
-                volume = simulateAdd(candidate, target.pos(), volume, levelAt);
+                volume = simulateAdd(candidate, target.pos(), volume, levelAt, capacityAt);
                 int accepted = previousVolume - volume;
                 if (accepted > 0) {
                     recordFlowTransfers(acceptedFlowTransfers, target.path(), accepted);
@@ -316,12 +328,12 @@ public class SpecialFlow {
     }
 
     private static int simulateAdd(Map<BlockPos, Integer> plan, BlockPos pos, int volume,
-                                   ToIntFunction<BlockPos> levelAt) {
+                                   ToIntFunction<BlockPos> levelAt, ToIntFunction<BlockPos> capacityAt) {
         int current = plan.containsKey(pos) ? plan.get(pos) : levelAt.applyAsInt(pos);
         if (current < 0) {
             return -1;
         }
-        int accepted = Math.min(MAX_WATER_LEVEL - current, volume);
+        int accepted = Math.min(capacityAt.applyAsInt(pos) - current, volume);
         if (accepted > 0) {
             plan.put(pos, current + accepted);
         }

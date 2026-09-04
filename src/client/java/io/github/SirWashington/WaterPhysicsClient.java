@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 public class WaterPhysicsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        FrozenWaterloggedModel.initialize();
         FluidRenderingRegistry.register(
                 ModFluids.FINITE_WATER,
                 ModFluids.FLOWING_FINITE_WATER,

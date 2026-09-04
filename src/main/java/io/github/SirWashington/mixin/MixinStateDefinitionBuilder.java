@@ -15,7 +15,8 @@ public abstract class MixinStateDefinitionBuilder<O, S extends StateHolder<O, S>
     @SuppressWarnings("unchecked")
     private void immersivefluids$addFiniteWaterLevel(O owner, CallbackInfo callbackInfo) {
         if (owner instanceof Block block && FiniteWaterloggedPlants.supports(block)) {
-            ((StateDefinition.Builder<O, S>) (Object) this).add(FiniteWaterloggedPlants.LEVEL);
+            ((StateDefinition.Builder<O, S>) (Object) this).add(FiniteWaterloggedPlants.LEVEL,
+                    io.github.SirWashington.features.FrozenWaterloggedBlocks.FROZEN);
         }
     }
 }

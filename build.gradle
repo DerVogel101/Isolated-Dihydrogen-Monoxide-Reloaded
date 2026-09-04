@@ -11,7 +11,8 @@ def licenseArchiveName = project.archives_base_name
 def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
-if (dripstoneTest || cropTest || sensorTest) {
+def iceTest = providers.gradleProperty('iceTest').isPresent()
+if (dripstoneTest || cropTest || sensorTest || iceTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -33,9 +34,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest) {
 			server {
-				runDir sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -70,9 +71,14 @@ processResources {
 	inputs.property "dripstoneTest", dripstoneTest
 	inputs.property "cropTest", cropTest
 	inputs.property "sensorTest", sensorTest
+	inputs.property "iceTest", iceTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+		if (iceTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteIceServerTest"') }
+		}
 		if (dripstoneTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DripstoneServerTest"') }
@@ -102,7 +108,30 @@ test {
 	failOnNoDiscoveredTests = false
 }
 
-check.dependsOn physicsSelfTest
+sourceSets {
+	clientTest {
+		compileClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.compileClasspath
+		runtimeClasspath += sourceSets.main.output + sourceSets.client.runtimeClasspath
+	}
+}
+
+tasks.register('iceRenderSelfTest', JavaExec) {
+	dependsOn clientTestClasses
+	classpath = sourceSets.clientTest.runtimeClasspath
+	mainClass = 'io.github.SirWashington.IceRenderSelfTest'
+}
+
+check.dependsOn physicsSelfTest, iceRenderSelfTest
+
+if (iceTest) {
+	tasks.named('runServer') {
+		doLast {
+			if (!file('build/ice-test-server/logs/latest.log').text.contains('FINITE_ICE_SERVER_TEST_PASS')) {
+				throw new GradleException('Finite ice regression failed; inspect build/ice-test-server/logs/latest.log')
+			}
+		}
+	}
+}
 
 if (sensorTest) {
 	tasks.named('runServer') {

@@ -24,18 +24,28 @@ public abstract class MixinBlockStateBase {
     @Inject(method = "getFluidState", at = @At("HEAD"), cancellable = true)
     private void immersivefluids$getFiniteWaterState(CallbackInfoReturnable<FluidState> callbackInfo) {
         BlockState state = (BlockState) (Object) this;
+        if (io.github.SirWashington.features.FrozenWaterloggedBlocks.isFrozen(state)
+                && FiniteWaterloggedPlants.getLevel(state) == 0) {
+            callbackInfo.setReturnValue(net.minecraft.world.level.material.Fluids.EMPTY.defaultFluidState());
+            return;
+        }
         int amount = FiniteWaterloggedPlants.getLevel(state);
         if (amount > 0) {
             callbackInfo.setReturnValue(FiniteWaterloggedPlants.visualFluidState(state, amount));
         }
     }
 
-    @Inject(method = "updateShape", at = @At("HEAD"))
+    @Inject(method = "updateShape", at = @At("HEAD"), cancellable = true)
     private void immersivefluids$scheduleFiniteWaterShapeTick(
             LevelReader level, ScheduledTickAccess ticks, BlockPos pos, Direction direction,
             BlockPos neighborPos, BlockState neighborState, RandomSource random,
             CallbackInfoReturnable<BlockState> callbackInfo
     ) {
+        if (io.github.SirWashington.features.FrozenWaterloggedBlocks.isLocked(level, pos)) {
+            immersivefluids$scheduleFiniteWaterTick(level, ticks, pos);
+            callbackInfo.setReturnValue((BlockState) (Object) this);
+            return;
+        }
         immersivefluids$scheduleFiniteWaterTick(level, ticks, pos);
     }
 
@@ -51,11 +61,16 @@ public abstract class MixinBlockStateBase {
         }
     }
 
-    @Inject(method = "handleNeighborChanged", at = @At("HEAD"))
+    @Inject(method = "handleNeighborChanged", at = @At("HEAD"), cancellable = true)
     private void immersivefluids$scheduleFiniteWaterNeighborTick(
             Level level, BlockPos pos, Block neighborBlock, Orientation orientation, boolean movedByPiston,
             CallbackInfo callbackInfo
     ) {
+        if (io.github.SirWashington.features.FrozenWaterloggedBlocks.isLocked(level, pos)) {
+            immersivefluids$scheduleFiniteWaterTick(level, level, pos);
+            callbackInfo.cancel();
+            return;
+        }
         immersivefluids$scheduleFiniteWaterTick(level, level, pos);
     }
 

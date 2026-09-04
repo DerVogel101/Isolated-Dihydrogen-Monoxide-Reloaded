@@ -95,6 +95,9 @@ public final class FiniteWaterPhysics {
         }
 
         BlockState previous = level.getBlockState(pos);
+        if (amount > getWaterCapacity(level, pos)) {
+            throw new IllegalArgumentException("Water exceeds free space at " + pos);
+        }
         boolean wasFiniteWater = ModFluids.isFiniteWater(previous.getFluidState().getType());
         boolean plantHost = FiniteWaterloggedPlants.canHoldFiniteWater(previous);
         if (!previous.isAir() && !wasFiniteWater && !plantHost) {
@@ -147,7 +150,7 @@ public final class FiniteWaterPhysics {
         return pos.equals(WATER_LEVEL_WRITE_POSITION.get());
     }
 
-    private static void setWaterloggedBlock(ServerLevel level, BlockPos pos, BlockState state) {
+    public static void setWaterloggedBlock(ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos previousWritePosition = WATER_LEVEL_WRITE_POSITION.get();
         WATER_LEVEL_WRITE_POSITION.set(pos.immutable());
         try {
@@ -166,25 +169,28 @@ public final class FiniteWaterPhysics {
         if (current < 0) {
             return false;
         }
-        if (current == 0) {
+        int capacity = getWaterCapacity(level, pos);
+        if (current == 0 && capacity == MAX_LEVEL) {
             setWaterLevel(level, pos, MAX_LEVEL);
             return true;
         }
 
         BlockPos[] positions = new BlockPos[BUCKET_OVERFLOW.length];
         int[] amounts = new int[BUCKET_OVERFLOW.length];
+        int[] capacities = new int[BUCKET_OVERFLOW.length];
         for (int i = 0; i < BUCKET_OVERFLOW.length; i++) {
             positions[i] = pos.relative(BUCKET_OVERFLOW[i]);
             amounts[i] = canFlowBetween(level, pos, positions[i])
                     ? getWaterLevel(level, positions[i]) : -1;
+            capacities[i] = getWaterCapacity(level, positions[i]);
         }
 
         int[] previous = amounts.clone();
-        if (FiniteWaterMath.distribute(current, amounts) != 0) {
+        if (FiniteWaterMath.distribute(current + MAX_LEVEL - capacity, amounts, capacities) != 0) {
             return false;
         }
 
-        setWaterLevel(level, pos, MAX_LEVEL);
+        setWaterLevel(level, pos, capacity);
         for (int i = 0; i < positions.length; i++) {
             if (amounts[i] >= 0 && amounts[i] != previous[i]) {
                 setWaterLevel(level, positions[i], amounts[i]);
@@ -202,14 +208,16 @@ public final class FiniteWaterPhysics {
         BlockPos[] positions = new BlockPos[BUCKET_OVERFLOW.length];
         int[] levels = new int[BUCKET_OVERFLOW.length];
         int[] previous = new int[BUCKET_OVERFLOW.length];
+        int[] capacities = new int[BUCKET_OVERFLOW.length];
         for (int i = 0; i < BUCKET_OVERFLOW.length; i++) {
             positions[i] = origin.relative(BUCKET_OVERFLOW[i]);
             levels[i] = isChunkLoaded(level, positions[i]) && canFlowBetween(level, origin, positions[i])
                     ? getWaterLevel(level, positions[i]) : -1;
             previous[i] = levels[i];
+            capacities[i] = levels[i] >= 0 ? getWaterCapacity(level, positions[i]) : 0;
         }
 
-        int destroyed = FiniteWaterMath.distribute(amount, levels);
+        int destroyed = FiniteWaterMath.distribute(amount, levels, capacities);
         for (int i = 0; i < positions.length; i++) {
             if (levels[i] >= 0 && levels[i] != previous[i]) {
                 setWaterLevel(level, positions[i], levels[i]);
@@ -241,8 +249,8 @@ public final class FiniteWaterPhysics {
 
         BlockPos below = pos.below();
         int belowLevel = getWaterLevel(level, below);
-        if (belowLevel >= 0 && belowLevel < MAX_LEVEL && canFlowBetween(level, pos, below, center)) {
-            int moved = Math.min(center, MAX_LEVEL - belowLevel);
+        if (belowLevel >= 0 && belowLevel < getWaterCapacity(level, below) && canFlowBetween(level, pos, below, center)) {
+            int moved = Math.min(center, getWaterCapacity(level, below) - belowLevel);
             setWaterLevel(level, pos, center - moved);
             setWaterLevel(level, below, belowLevel + moved);
             applyCurrent(level, pos, below, moved);
@@ -343,7 +351,7 @@ public final class FiniteWaterPhysics {
 
     static boolean canFlowBetween(LevelReader level, BlockPos from, BlockPos to, int waterLevel) {
         int barrier = flowBarrierLevel(level, from, to);
-        return waterLevel > barrier
+        return waterLevel + FiniteWaterloggedPlants.occupiedLayers(level.getBlockState(from)) > barrier
                 || canEnterConnectedDrainPath(level, from, to, getWaterLevel(level, to), barrier);
     }
 
@@ -374,6 +382,8 @@ public final class FiniteWaterPhysics {
     }
 
     private static VoxelShape flowShape(BlockState state, LevelReader level, BlockPos pos) {
+        // Snow collision is one layer shorter than its actual occupied volume.
+        if (FiniteWaterloggedPlants.snowLayers(state) > 0) return state.getShape(level, pos);
         // Grates have full player collision, but their openings admit finite water on every face.
         return COPPER_GRATES.contains(state.getBlock()) ? Shapes.empty() : state.getCollisionShape(level, pos);
     }
@@ -627,6 +637,7 @@ public final class FiniteWaterPhysics {
         BlockPos[] positions = new BlockPos[HORIZONTAL.length];
         int[] amounts = new int[HORIZONTAL.length];
         int[] barriers = new int[HORIZONTAL.length];
+        int[] floors = new int[HORIZONTAL.length];
         for (int i = 0; i < HORIZONTAL.length; i++) {
             positions[i] = centerPos.relative(HORIZONTAL[(rotation + i) % HORIZONTAL.length]);
             int barrier = flowBarrierLevel(level, centerPos, positions[i]);
@@ -634,10 +645,12 @@ public final class FiniteWaterPhysics {
                     ? getWaterLevel(level, positions[i]) : -1;
             barriers[i] = canEnterConnectedDrainPath(level, centerPos, positions[i], amounts[i], barrier)
                     ? 0 : barrier;
+            floors[i] = MAX_LEVEL - getWaterCapacity(level, positions[i]);
         }
 
         int[] previous = amounts.clone();
-        center = FiniteWaterMath.equalizeFromCenter(center, amounts, barriers);
+        center = FiniteWaterMath.equalizeFromCenter(center, amounts, barriers,
+                MAX_LEVEL - getWaterCapacity(level, centerPos), floors);
 
         for (int i = 0; i < HORIZONTAL.length; i++) {
             if (amounts[i] >= 0 && amounts[i] != getWaterLevel(level, positions[i])) {
@@ -689,14 +702,14 @@ public final class FiniteWaterPhysics {
 
                 int nextLevel = getWaterLevel(level, next);
                 int entryBarrier = flowBarrierLevel(level, current, next);
-                if (nextLevel < 0 || nextLevel > Math.max(1, entryBarrier)) {
+                if (nextLevel < 0 || nextLevel >= getWaterCapacity(level, next) || nextLevel > Math.max(1, entryBarrier)) {
                     continue;
                 }
 
                 Direction step = currentNode.firstStep() == null ? direction : currentNode.firstStep();
                 BlockPos below = next.below();
                 int dropLevel = isChunkLoaded(level, below) ? getWaterLevel(level, below) : -1;
-                if (dropLevel >= 0 && dropLevel < MAX_LEVEL && canFlowBetween(level, next, below, 1)) {
+                if (dropLevel >= 0 && dropLevel < getWaterCapacity(level, below) && canFlowBetween(level, next, below, 1)) {
                     BlockPos destination = start.relative(step);
                     int destinationLevel = getWaterLevel(level, destination);
                     setWaterLevel(level, start, 0);
@@ -723,6 +736,10 @@ public final class FiniteWaterPhysics {
 
     private static boolean isChunkLoaded(ServerLevel level, BlockPos pos) {
         return level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
+    public static int getWaterCapacity(LevelReader level, BlockPos pos) {
+        return MAX_LEVEL - FiniteWaterloggedPlants.occupiedLayers(level.getBlockState(pos));
     }
 
     private record DrainSearchNode(BlockPos pos, int pathLength, Direction firstStep) {

@@ -9,6 +9,11 @@
     "MixinBucketItem",
     "MixinCropFertilization",
     "MixinEntity",
+    "MixinFrozenBlockDefaults",
+    "MixinFrozenBlockState",
+    "MixinFrozenContainerValidity",
+    "MixinFrozenHopperAccess",
+    "MixinFrozenIceFriction",
     "MixinLevel",
     "MixinMangroveRootPlacer",
     "MixinMushroomBlock",
@@ -17,11 +22,14 @@
     "MixinPlayer",
     "MixinPointedDripstoneBlock",
     "MixinServerChunkCache",
+    "MixinServerLevel",
+    "MixinSnowLayerBlock",
     "MixinSpongeBlock",
     "MixinStateDefinitionBuilder",
     "MixinTreeGrower"
   ],
   "client": [
+    "MixinFiniteIceFluidRenderer",
     "MixinClientLevel"
   ],
   "injectors": {

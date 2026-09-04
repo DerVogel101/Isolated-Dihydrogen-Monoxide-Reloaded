@@ -1,6 +1,7 @@
 package io.github.SirWashington.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import io.github.SirWashington.block.LayeredFiniteIceBlock;
 import io.github.SirWashington.features.FiniteWaterGrowthDisplacement;
 import io.github.SirWashington.features.FiniteWaterPhysics;
 import io.github.SirWashington.features.FiniteWaterloggedPlants;
@@ -25,6 +26,19 @@ public abstract class MixinLevel {
             BlockState replacement, @Local(argsOnly = true) BlockPos pos
     ) {
         Level level = (Level) (Object) this;
+        if (FiniteWaterPhysics.isChangingWaterLevel(pos)) return replacement;
+        if (!level.isClientSide() && level.isInValidBounds(pos)) {
+            BlockState old = level.getBlockState(pos);
+            if ((replacement.isAir() || replacement.is(io.github.SirWashington.block.ModBlocks.FINITE_WATER))
+                    && FiniteWaterloggedPlants.snowLayers(old) > 0
+                    && FiniteWaterloggedPlants.getLevel(old) > 0) {
+                return FiniteWaterloggedPlants.fluidState(FiniteWaterloggedPlants.getLevel(old)).createLegacyBlock();
+            }
+            if (old.is(replacement.getBlock())
+                    && io.github.SirWashington.features.FrozenWaterloggedBlocks.isFrozen(old)) return old;
+        }
+        // Ice phase transitions explicitly set both frozen and liquid amounts.
+        if (replacement.getBlock() instanceof LayeredFiniteIceBlock) return replacement;
         replacement = FiniteWaterGrowthDisplacement.prepareReplacement(level, pos, replacement);
         if (!level.isInValidBounds(pos) || !FiniteWaterloggedPlants.canHoldFiniteWater(replacement)) {
             return replacement;
@@ -36,16 +50,12 @@ public abstract class MixinLevel {
         BlockState previous = level.getBlockState(pos);
         int amount;
         if (previous.getBlock() == replacement.getBlock()) {
-            if (FiniteWaterPhysics.isChangingWaterLevel(pos)) {
-                amount = FiniteWaterloggedPlants.getLevel(replacement);
-            } else {
-                amount = FiniteWaterloggedPlants.getLevel(previous);
-                if (amount < 0) {
-                    return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
-                }
-                if (amount == 0 && !previous.getFluidState().isEmpty()) {
-                    return replacement;
-                }
+            amount = FiniteWaterloggedPlants.getLevel(previous);
+            if (amount < 0) {
+                return replacement.setValue(FiniteWaterloggedPlants.LEVEL, 0);
+            }
+            if (amount == 0 && !previous.getFluidState().isEmpty()) {
+                return replacement;
             }
         } else {
             amount = FiniteWaterloggedPlants.getLevel(previous);
@@ -58,6 +68,7 @@ public abstract class MixinLevel {
             }
         }
 
+        if (amount + FiniteWaterloggedPlants.snowLayers(replacement) > 8) return previous;
         BlockState result = FiniteWaterloggedPlants.withLevel(replacement, amount);
         if (amount > 0) {
             FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);

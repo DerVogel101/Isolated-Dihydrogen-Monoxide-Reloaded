@@ -53,7 +53,7 @@ public class PrecisionBucketItem extends Item {
             FiniteWaterPhysics.setWaterLevel(serverLevel, target, targetLevel - moved);
             setFill(itemStack, fill + moved);
         } else {
-            int moved = Math.min(fill, 8 - targetLevel);
+            int moved = Math.min(fill, FiniteWaterPhysics.getWaterCapacity(level, target) - targetLevel);
             if (moved == 0) {
                 return InteractionResult.FAIL;
             }

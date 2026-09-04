@@ -9,6 +9,39 @@ This branch targets Minecraft/Fabric 26.2 and Java 25. Finite-water physics use 
 .\gradlew.bat -g .gradle\codex-gradle-9.5.1 clean build --no-daemon
 ```
 
+## Finite ice
+
+Finite water freezes outdoors in cold biomes during Minecraft's regular ice/snow checks,
+at block light below 10. Levels 1-7 become layered finite ice; level 8 becomes full finite ice.
+Layered ice can hold liquid finite water in its remaining space (ice + water <= 8).
+Further freezing converts the liquid into more ice, producing a full block at eight layers.
+Precision buckets retain any water that does not fit. Full buckets require room for overflow.
+
+In survival, full finite ice drops itself with Silk Touch; otherwise it releases eight finite-water
+units. Layered ice drops nothing, even with Silk Touch, and releases its frozen plus liquid units.
+Both variants melt back into their conserved water volume under block light above 11.
+Finite-waterlogged blocks freeze in place, keeping their block state and block entity (including inventories).
+Partially frozen hosts can hold more liquid finite water up to eight total units (ice + liquid).
+Snow layers share that space: three snow layers leave room for five water levels, and eight leave none.
+Water freezes above the snow, preserving its layer count; snow, ice, and liquid together never exceed eight levels.
+Snow stacking is rejected when it would overfill the block. Removing or melting wet snow retains its finite water.
+Buckets and natural flow can fill that remaining space; refreezing and thawing conserve both portions.
+The ice prevents use, hopper access, and normal ticking. Paired chests/doors/beds are locked together.
+Frozen waterlogged blocks have solid ice collision and vanilla ice slipperiness, including thin layers around plants.
+Breaking the ice thaws the host without harvesting it or dropping its contents, including with Silk Touch.
+Strong block light (above 11) also thaws it; the stored finite-water amount is restored.
+Vanilla water and vanilla-waterlogged blocks retain their existing behavior.
+The isolated regression is `./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PiceTest runServer --args="--nogui" --no-daemon`.
+
+Manual client check: freeze a chest containing items, a potted plant, and a slab in an enclosed,
+outdoor finite-water basin in a cold biome. Check the ice overlay/collision, blocked chest access
+(including the other half of a double chest), then break or melt the ice with nearby glowstone.
+The original blocks and chest contents must remain, with no duplicated drops.
+Also top up partially frozen plants and layered ice: the ice should stay visible beneath the water,
+and the ice around offset plants should align with the block grid, not the plant's random offset.
+For snow, try three layers with five water levels, then freeze and break/thaw the ice: all three snow layers
+and five water levels should remain. Check that water and ice render above the snow, not through it.
+
 ## Configuration
 
 Global physics values are stored in `config/immersivefluids.server.toml` and can also be edited

@@ -13,6 +13,8 @@ import java.util.function.Function;
 
 
 public class ModItems {
+    public static final Item FINITE_ICE = register(ModItemIds.FINITE_ICE,
+            properties -> new BlockItem(ModBlocks.FINITE_ICE, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item RAIN_SENSOR = register(ModItemIds.RAIN_SENSOR,
             properties -> new BlockItem(ModBlocks.RAIN_SENSOR, properties),
             new Item.Properties().useBlockDescriptionPrefix());
@@ -29,10 +31,13 @@ public class ModItems {
     );
 
     private static Item register(ResourceKey<Item> key, Function<Item.Properties, Item> factory, Item.Properties properties) {
-        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(properties.setId(key)));
+        Item item = factory.apply(properties.setId(key));
+        if (item instanceof BlockItem blockItem) blockItem.registerBlocks(Item.BY_BLOCK, item);
+        return Registry.register(BuiltInRegistries.ITEM, key, item);
     }
 
     public static void initialize() {
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(entries -> entries.accept(FINITE_ICE));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->
                 entries.accept(RAIN_SENSOR));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register(entries -> {

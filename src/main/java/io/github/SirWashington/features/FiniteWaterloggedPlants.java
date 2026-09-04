@@ -1,6 +1,8 @@
 package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.block.FiniteIceBlock;
+import io.github.SirWashington.block.LayeredFiniteIceBlock;
 import io.github.SirWashington.block.ModBlockTags;
 import io.github.SirWashington.fluid.ModFluids;
 import net.minecraft.world.level.block.*;
@@ -25,6 +27,7 @@ public final class FiniteWaterloggedPlants {
             return false;
         }
         return block instanceof SimpleWaterloggedBlock
+                || block instanceof SnowLayerBlock
                 || block instanceof VegetationBlock
                 || block instanceof GrowingPlantBlock
                 || block instanceof GlowLichenBlock
@@ -107,10 +110,28 @@ public final class FiniteWaterloggedPlants {
     }
 
     public static int getLevel(BlockState state) {
-        return canHoldFiniteWater(state) ? state.getValue(LEVEL) : -1;
+        return canHoldFiniteWater(state) ? state.getValue(LEVEL) - FrozenWaterloggedBlocks.frozenUnits(state) : -1;
+    }
+
+    public static int snowLayers(BlockState state) {
+        return state.getBlock() instanceof SnowLayerBlock ? state.getValue(SnowLayerBlock.LAYERS) : 0;
+    }
+
+    public static int occupiedLayers(BlockState state) {
+        return snowLayers(state) + FiniteIceBlock.frozenLayers(state);
     }
 
     public static int visualFluidLevel(BlockState state, int amount) {
+        if (amount > 0 && snowLayers(state) > 0) {
+            return Math.min(8, occupiedLayers(state) + amount + 1);
+        }
+        if (amount > 0 && FrozenWaterloggedBlocks.isFrozen(state)) {
+            return Math.min(8, 1 + visualFluidLevel(state.setValue(FrozenWaterloggedBlocks.FROZEN,
+                    FrozenWaterloggedBlocks.Phase.NONE), amount + FrozenWaterloggedBlocks.frozenUnits(state)));
+        }
+        if (amount > 0 && state.getBlock() instanceof LayeredFiniteIceBlock) {
+            return Math.min(8, FiniteIceBlock.frozenLayers(state) + amount + 1);
+        }
         if (amount <= 0 || amount == 8 || !isUpwardHalfBlock(state)) {
             return amount;
         }
@@ -126,6 +147,7 @@ public final class FiniteWaterloggedPlants {
     }
 
     public static BlockState withLevel(BlockState state, int amount) {
+        if (FrozenWaterloggedBlocks.isFrozen(state)) return FrozenWaterloggedBlocks.withLiquid(state, amount);
         BlockState result = state.setValue(LEVEL, amount);
         boolean extinguishable = isExtinguishable(result);
         if (result.hasProperty(BlockStateProperties.WATERLOGGED)) {

@@ -22,6 +22,7 @@ public class WaterPhysics implements ModInitializer {
         ModBlocks.initialize();
         ModItems.initialize();
         FiniteWaterPhysics.initialize();
+        io.github.SirWashington.features.FrozenWaterloggedBlocks.initialize();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("waterlevel")
