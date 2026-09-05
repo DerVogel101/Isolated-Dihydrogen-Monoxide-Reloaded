@@ -25,6 +25,7 @@ public final class FiniteWaterFreezing {
             return true;
         }
         int frozen = liquid + FiniteIceBlock.frozenLayers(state);
+        if (frozen > 8) return false;
         level.setBlockAndUpdate(pos, frozen == 8 ? ModBlocks.FINITE_ICE.defaultBlockState()
                 : ModBlocks.LAYERED_FINITE_ICE.defaultBlockState().setValue(LayeredFiniteIceBlock.LAYERS, frozen));
         return true;

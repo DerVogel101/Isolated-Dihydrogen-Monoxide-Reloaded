@@ -95,8 +95,19 @@ public final class FiniteWaterPhysics {
         }
 
         BlockState previous = level.getBlockState(pos);
-        if (amount > getWaterCapacity(level, pos)) {
-            throw new IllegalArgumentException("Water exceeds free space at " + pos);
+        int capacity = getWaterCapacity(level, pos);
+        boolean repaired = FiniteWaterloggedPlants.getLevel(previous) > capacity;
+        if (repaired) {
+            // Repair overfilled states saved before capacity validation was added.
+            previous = FiniteWaterloggedPlants.withLevel(previous, capacity);
+            setWaterloggedBlock(level, pos, previous);
+        }
+        if (amount > capacity) {
+            if (repaired) {
+                amount = capacity;
+            } else {
+                throw new IllegalArgumentException("Water exceeds free space at " + pos);
+            }
         }
         boolean wasFiniteWater = ModFluids.isFiniteWater(previous.getFluidState().getType());
         boolean plantHost = FiniteWaterloggedPlants.canHoldFiniteWater(previous);

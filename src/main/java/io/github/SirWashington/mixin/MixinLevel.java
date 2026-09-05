@@ -38,7 +38,13 @@ public abstract class MixinLevel {
                     && io.github.SirWashington.features.FrozenWaterloggedBlocks.isFrozen(old)) return old;
         }
         // Ice phase transitions explicitly set both frozen and liquid amounts.
-        if (replacement.getBlock() instanceof LayeredFiniteIceBlock) return replacement;
+        if (replacement.getBlock() instanceof LayeredFiniteIceBlock) {
+            int layers = replacement.getValue(LayeredFiniteIceBlock.LAYERS);
+            int liquid = replacement.getValue(FiniteWaterloggedPlants.LEVEL);
+            return liquid + layers <= 8
+                    ? replacement
+                    : replacement.setValue(FiniteWaterloggedPlants.LEVEL, 8 - layers);
+        }
         replacement = FiniteWaterGrowthDisplacement.prepareReplacement(level, pos, replacement);
         if (!level.isInValidBounds(pos) || !FiniteWaterloggedPlants.canHoldFiniteWater(replacement)) {
             return replacement;
@@ -68,7 +74,10 @@ public abstract class MixinLevel {
             }
         }
 
-        if (amount + FiniteWaterloggedPlants.snowLayers(replacement) > 8) return previous;
+        if (amount + FiniteWaterloggedPlants.snowLayers(replacement)
+                + io.github.SirWashington.features.FrozenWaterloggedBlocks.frozenUnits(replacement) > 8) {
+            return previous;
+        }
         BlockState result = FiniteWaterloggedPlants.withLevel(replacement, amount);
         if (amount > 0) {
             FluidState fluidState = FiniteWaterloggedPlants.fluidState(amount);

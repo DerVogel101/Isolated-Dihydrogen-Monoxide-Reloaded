@@ -201,6 +201,7 @@ public final class FiniteIceServerTest implements ModInitializer {
                 FiniteWaterPhysics.setWaterLevel(level, POS, 4);
                 expect(FiniteWaterFreezing.freeze(level, POS), "Waterlogged slab freezes");
                 expect(level.getBlockState(POS).is(Blocks.OAK_SLAB), "Frozen slab retains its block");
+                testDebugStickCapacity(level);
                 testFrozenHosts(level, player);
                 testSnow(level, player);
                 reset(level);
@@ -228,6 +229,32 @@ public final class FiniteIceServerTest implements ModInitializer {
 
     private static void layer(ServerLevel level, int ice) {
         level.setBlockAndUpdate(POS, ModBlocks.LAYERED_FINITE_ICE.defaultBlockState().setValue(LayeredFiniteIceBlock.LAYERS, ice));
+    }
+
+    private static void testDebugStickCapacity(ServerLevel level) {
+        reset(level);
+        level.setBlockAndUpdate(POS, Blocks.SHORT_GRASS.defaultBlockState());
+        FiniteWaterPhysics.setWaterLevel(level, POS, 8);
+        var original = level.getBlockState(POS);
+        level.setBlockAndUpdate(POS, original.setValue(FrozenWaterloggedBlocks.FROZEN,
+                FrozenWaterloggedBlocks.Phase.ALL));
+        expect(level.getBlockState(POS).equals(original), "Debug-stick phase cannot overfill waterlogged block");
+
+        reset(level);
+        layer(level, 7);
+        var overfilled = level.getBlockState(POS).setValue(FiniteWaterloggedPlants.LEVEL, 8);
+        level.getChunkAt(POS).getSection(level.getSectionIndex(POS.getY())).setBlockState(
+                POS.getX() & 15, POS.getY() & 15, POS.getZ() & 15, overfilled, false);
+        expect(FiniteWaterPhysics.getWaterLevel(level, POS) == 8, "Legacy overfilled layer is present for regression");
+        FiniteWaterPhysics.tick(level, POS);
+        expect(FiniteWaterPhysics.getWaterLevel(level, POS) <= 1, "Existing overfilled layer is repaired before flow");
+
+        reset(level);
+        layer(level, 7);
+        level.setBlockAndUpdate(POS, level.getBlockState(POS).setValue(FiniteWaterloggedPlants.LEVEL, 8));
+        expect(FiniteWaterPhysics.getWaterLevel(level, POS) == 1, "New overfilled layer is capped to remaining capacity");
+        expect(FiniteWaterFreezing.freeze(level, POS), "Capped layered ice can freeze");
+        expect(level.getBlockState(POS).is(ModBlocks.FINITE_ICE), "Capped layered ice reaches eight total layers");
     }
 
     private static void testSnow(ServerLevel level, ServerPlayer player) {
