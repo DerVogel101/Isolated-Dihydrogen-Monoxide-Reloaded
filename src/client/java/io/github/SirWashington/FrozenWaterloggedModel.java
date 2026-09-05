@@ -2,6 +2,7 @@ package io.github.SirWashington;
 
 import io.github.SirWashington.features.FrozenWaterloggedBlocks;
 import io.github.SirWashington.features.FiniteWaterloggedPlants;
+import io.github.SirWashington.block.FiniteIceBlock;
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -38,6 +39,8 @@ final class FrozenWaterloggedModel {
 
     static void initialize() {
         ModelLoadingPlugin.register(context -> context.modifyBlockModelOnLoad().register((original, load) -> {
+            if (load.state().getBlock() instanceof FiniteIceBlock && !FrozenWaterloggedBlocks.isFrozen(load.state()))
+                return new CullingRoot(original);
             if (!FrozenWaterloggedBlocks.isFrozen(load.state())) return original;
             int height = FrozenWaterloggedBlocks.iceHeight(load.state());
             Variant ice = new Variant(height == 8 ? Identifier.withDefaultNamespace("block/ice")
@@ -66,6 +69,29 @@ final class FrozenWaterloggedModel {
         };
     }
 
+    static VoxelShape iceShape(BlockState state) {
+        int bottom = 0;
+        int top;
+        if (FrozenWaterloggedBlocks.isFrozen(state)) {
+            bottom = FiniteWaterloggedPlants.snowLayers(state);
+            top = FrozenWaterloggedBlocks.iceHeight(state);
+        } else if (state.getBlock() instanceof FiniteIceBlock) {
+            top = FiniteIceBlock.frozenLayers(state);
+        } else {
+            return Shapes.empty();
+        }
+        return iceShape(bottom, top);
+    }
+
+    static VoxelShape iceShape(int bottom, int top) {
+        return top <= bottom ? Shapes.empty() : Block.box(0, bottom * 2, 0, 16, top * 2, 16);
+    }
+
+    static VoxelShape neighborFace(BlockState state, Direction face) {
+        VoxelShape ice = iceShape(state);
+        return ice.isEmpty() ? state.getFaceOcclusionShape(face.getOpposite()) : ice.getFaceShape(face.getOpposite());
+    }
+
     private record Root(BlockStateModel.UnbakedRoot host, Variant ice) implements BlockStateModel.UnbakedRoot {
         @Override public void resolveDependencies(ResolvableModel.Resolver resolver) {
             host.resolveDependencies(resolver);
@@ -83,6 +109,36 @@ final class FrozenWaterloggedModel {
 
     private record VisualGroup(Object host, Variant ice) {}
 
+    private record CullingRoot(BlockStateModel.UnbakedRoot host) implements BlockStateModel.UnbakedRoot {
+        @Override public void resolveDependencies(ResolvableModel.Resolver resolver) { host.resolveDependencies(resolver); }
+
+        @Override public BlockStateModel bake(BlockState state, ModelBaker baker) {
+            return new CulledModel(host.bake(state, baker));
+        }
+
+        @Override public Object visualEqualityGroup(BlockState state) { return host.visualEqualityGroup(state); }
+    }
+
+    private record CulledModel(BlockStateModel host) implements BlockStateModel {
+        @Override public void collectParts(RandomSource random, List<BlockStateModelPart> parts) {
+            host.collectParts(random, parts);
+        }
+
+        @Override public void emitQuads(QuadEmitter emitter, BlockAndTintGetter level, BlockPos pos,
+                BlockState state, RandomSource random, Predicate<Direction> cullTest) {
+            emitter.pushTransform(iceFaceCulling(iceShape(state),
+                    face -> neighborFace(level.getBlockState(pos.relative(face)), face)));
+            try {
+                host.emitQuads(emitter, level, pos, state, random, cullTest);
+            } finally {
+                emitter.popTransform();
+            }
+        }
+
+        @Override public Material.Baked particleMaterial() { return host.particleMaterial(); }
+        @Override public int materialFlags() { return host.materialFlags(); }
+    }
+
     private record FrozenModel(BlockStateModel host, BlockStateModelPart ice) implements BlockStateModel {
         @Override public void collectParts(RandomSource random, List<BlockStateModelPart> parts) {
             host.collectParts(random, parts);
@@ -95,10 +151,8 @@ final class FrozenWaterloggedModel {
             var offset = state.getOffset(pos);
             emitter.pushTransform(cancelPlantOffset(offset));
             emitter.pushTransform(aboveSnow(FiniteWaterloggedPlants.snowLayers(state) / 8.0F));
-            VoxelShape iceShape = Block.box(0, FiniteWaterloggedPlants.snowLayers(state) * 2, 0,
-                    16, FrozenWaterloggedBlocks.iceHeight(state) * 2, 16);
-            emitter.pushTransform(iceFaceCulling(iceShape,
-                    face -> level.getBlockState(pos.relative(face)).getFaceOcclusionShape(face.getOpposite())));
+            emitter.pushTransform(iceFaceCulling(iceShape(state),
+                    face -> neighborFace(level.getBlockState(pos.relative(face)), face)));
             try {
                 // Host culling can hide ice that rises above the host's own opaque shape.
                 ice.emitQuads(emitter, face -> false);

@@ -87,6 +87,18 @@ public final class IceRenderSelfTest {
                 }
             }
         }
+        for (int currentHeight = 1; currentHeight <= 7; currentHeight++) {
+            for (int neighborHeight = 1; neighborHeight <= 8; neighborHeight++) {
+                final int neighbor = neighborHeight;
+                cullFace[0] = Direction.EAST;
+                boolean visible = FrozenWaterloggedModel.iceFaceCulling(
+                        FrozenWaterloggedModel.iceShape(0, currentHeight),
+                        face -> FrozenWaterloggedModel.iceShape(0, neighbor).getFaceShape(face.getOpposite()))
+                        .transform(faceQuad);
+                expect(visible == (currentHeight > neighbor),
+                        "Adjacent finite ice border uses both layer heights");
+            }
+        }
         System.out.println("FINITE_ICE_RENDER_TEST_PASS");
     }
 
