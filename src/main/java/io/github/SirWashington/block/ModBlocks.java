@@ -10,6 +10,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.FlowingFluid;
 
 public final class ModBlocks {
+    public static final Block WATER_VALVE = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.WATER_VALVE,
+            new WaterValveBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
+                    .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.WATER_VALVE)));
     public static final Block WATER_PUMP = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.WATER_PUMP,
             new WaterPumpBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
                     .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.WATER_PUMP)));

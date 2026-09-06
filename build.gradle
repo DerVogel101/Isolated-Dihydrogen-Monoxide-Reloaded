@@ -12,8 +12,9 @@ def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
 def iceTest = providers.gradleProperty('iceTest').isPresent()
+def valveTest = providers.gradleProperty('valveTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
-if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest) {
+if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -35,9 +36,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest) {
 			server {
-				runDir pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -74,9 +75,14 @@ processResources {
 	inputs.property "sensorTest", sensorTest
 	inputs.property "iceTest", iceTest
 	inputs.property "pumpTest", pumpTest
+	inputs.property "valveTest", valveTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+        if (valveTest) {
+            filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+                    '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterValveServerTest"') }
+        }
 		if (pumpTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterPumpServerTest"') }
@@ -216,4 +222,21 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+tasks.register('valveGeometrySelfTest', JavaExec) {
+    dependsOn clientTestClasses
+    classpath = sourceSets.clientTest.runtimeClasspath
+    mainClass = 'io.github.SirWashington.ValveGeometrySelfTest'
+}
+check.dependsOn valveGeometrySelfTest
+
+if (valveTest) {
+    tasks.named('runServer') {
+        doLast {
+            if (!file('build/valve-test-server/logs/latest.log').text.contains('WATER_VALVE_SERVER_TEST_PASS')) {
+                throw new GradleException('Valve regression failed; inspect build/valve-test-server/logs/latest.log')
+            }
+        }
+    }
 }

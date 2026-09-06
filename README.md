@@ -9,6 +9,21 @@ This branch targets Minecraft/Fabric 26.2 and Java 25. Finite-water physics use 
 .\gradlew.bat -g .gradle\codex-gradle-9.5.1 clean build --no-daemon
 ```
 
+## Water valve
+
+Place `immersivefluids:water_valve` blocks facing the same direction in a 1x1, 2x2, or 3x3 square.
+All six directions are supported. Redstone at any member opens the whole valve; removing power closes it.
+A full transition takes 140 ticks: 60 to swing the leaves, 60 to extend the telescoping plates,
+and 20 to extend the short top/bottom bolts from their drive bases. Opening reverses this order.
+The water seal closes at the outlet face when the plates meet, before the final locking phase.
+Both faces have visible actuators and locking hardware; 3x3 leaves have three actuator rows. Open 2x2/3x3 valves admit a walking player;
+the 1x1 admits a crawling or swimming player.
+
+The shaped recipe yields two valves: iron blocks in the corners, iron doors at the top/bottom center,
+sticky pistons at the left/right center, and a waxed lightning rod in the center.
+Run `./gradlew.bat -PvalveTest runServer --args="--nogui" --no-daemon` for the isolated server regression.
+`valveGeometrySelfTest` also produces a headless preview in `build/valve-geometry-preview.png`.
+
 ## Finite ice
 
 Finite water freezes outdoors in cold biomes during Minecraft's regular ice/snow checks,

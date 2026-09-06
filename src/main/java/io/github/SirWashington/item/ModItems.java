@@ -13,6 +13,8 @@ import java.util.function.Function;
 
 
 public class ModItems {
+    public static final Item WATER_VALVE = register(ModItemIds.WATER_VALVE,
+            properties -> new BlockItem(ModBlocks.WATER_VALVE, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item WATER_PUMP = register(ModItemIds.WATER_PUMP,
             properties -> new BlockItem(ModBlocks.WATER_PUMP, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item FINITE_ICE = register(ModItemIds.FINITE_ICE,
@@ -39,7 +41,7 @@ public class ModItems {
     }
 
     public static void initialize() {
-        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> entries.accept(WATER_PUMP));
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> { entries.accept(WATER_PUMP); entries.accept(WATER_VALVE); });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(entries -> entries.accept(FINITE_ICE));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->
                 entries.accept(RAIN_SENSOR));

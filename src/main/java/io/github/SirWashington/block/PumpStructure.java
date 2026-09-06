@@ -8,27 +8,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
 
 /** Complete squares in the outlet plane, tiled largest first when assemblies touch. */
 public record PumpStructure(BlockPos origin, int size, Direction facing) {
     public static Direction right(Direction facing) {
-        return switch (facing) {
-            case NORTH -> Direction.WEST;
-            case EAST -> Direction.NORTH;
-            case WEST -> Direction.SOUTH;
-            default -> Direction.EAST;
-        };
+        return SquareStructure.right(facing);
     }
 
     public static Direction up(Direction facing) {
-        return switch (facing) {
-            case UP -> Direction.NORTH;
-            case DOWN -> Direction.SOUTH;
-            default -> Direction.UP;
-        };
+        return SquareStructure.up(facing);
     }
 
     public static int coordinate(BlockPos pos, Direction direction) {
@@ -41,44 +30,8 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
     }
 
     public static PumpStructure find(BlockGetter level, BlockPos pos) {
-        Direction facing = level.getBlockState(pos).getValue(WaterPumpBlock.FACING);
-        PumpStructure isolated = new PumpStructure(pos, 1, facing);
-        Direction right = right(facing), up = up(facing);
-        Set<BlockPos> remaining = new HashSet<>();
-        var queue = new ArrayList<BlockPos>();
-        remaining.add(pos); queue.add(pos);
-        for (int i = 0; i < queue.size(); i++) {
-            for (Direction direction : new Direction[]{right, right.getOpposite(), up, up.getOpposite()}) {
-                BlockPos next = queue.get(i).relative(direction);
-                if (matches(level, next, facing) && !remaining.contains(next)) {
-                    // Bound formation work on oversized walls; do not load chunks to complete a square.
-                    if (remaining.size() >= 1024) return isolated;
-                    remaining.add(next); queue.add(next);
-                }
-            }
-        }
-        var order = java.util.Comparator.<BlockPos>comparingInt(p -> coordinate(p, up))
-                .thenComparingInt(p -> coordinate(p, right));
-        queue.sort(order);
-        for (int size = 3; size >= 1; size--) {
-            for (BlockPos origin : queue) {
-                if (!remaining.contains(origin)) continue;
-                PumpStructure stage = new PumpStructure(origin, size, facing);
-                boolean complete = true;
-                for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) {
-                    complete &= remaining.contains(stage.cell(x, y));
-                }
-                if (!complete) continue;
-                boolean contains = false;
-                for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) {
-                    BlockPos member = stage.cell(x, y);
-                    remaining.remove(member);
-                    contains |= member.equals(pos);
-                }
-                if (contains) return stage;
-            }
-        }
-        return isolated;
+        SquareStructure square = SquareStructure.find(level, pos);
+        return new PumpStructure(square.origin(), square.size(), square.facing());
     }
 
     private static boolean matches(BlockGetter level, BlockPos pos, Direction facing) {

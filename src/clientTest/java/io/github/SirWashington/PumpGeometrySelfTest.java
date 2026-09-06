@@ -157,7 +157,7 @@ public final class PumpGeometrySelfTest {
         }
     }
 
-    private static void draw(Graphics2D g, List<PumpGeometry.Part> parts, List<PumpGeometry.Quad> housing,
+    static void draw(Graphics2D g, List<PumpGeometry.Part> parts, List<PumpGeometry.Quad> housing,
                              int cx, int cy, double scale) {
         var faces = new ArrayList<Face>();
         int[][] indices = {{0,1,3,2},{4,6,7,5},{0,4,5,1},{2,3,7,6},{0,2,6,4},{1,5,7,3}};

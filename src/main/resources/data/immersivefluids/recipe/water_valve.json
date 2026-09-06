@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": [
+    "#I#",
+    "/W/",
+    "#I#"
+  ],
+  "key": {
+    "#": "minecraft:iron_block",
+    "I": "minecraft:iron_door",
+    "/": "minecraft:sticky_piston",
+    "W": "minecraft:waxed_lightning_rod"
+  },
+  "result": {
+    "id": "immersivefluids:water_valve",
+    "count": 2
+  }
+}
