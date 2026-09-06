@@ -1,0 +1,133 @@
+package io.github.SirWashington.block;
+
+import io.github.SirWashington.WaterPhysics;
+import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.features.PumpFlow;
+import net.minecraft.server.level.ServerLevel;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+public final class WaterPumpBlockEntity extends BlockEntity {
+    private static final int RUN_SOUND_DELAY = 20;
+    private static final int RUN_SOUND_INTERVAL = 20;
+    public static final BlockEntityType<WaterPumpBlockEntity> TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "water_pump"),
+            FabricBlockEntityTypeBuilder.create(WaterPumpBlockEntity::new, ModBlocks.WATER_PUMP).build());
+    private int size = 1, column, row, connections;
+    private int poweredTicks;
+    private VoxelShape collision;
+    public final PumpAnimation animation = new PumpAnimation();
+
+    public WaterPumpBlockEntity(BlockPos pos, BlockState state) { super(TYPE, pos, state); }
+    public static void initialize() { }
+    public int size() { return size; }
+    public int column() { return column; }
+    public int row() { return row; }
+    public int connections() { return connections; }
+    public boolean isController() { return column == 0 && row == 0; }
+
+    public VoxelShape collisionShape() {
+        if (collision == null) collision = PumpGeometry.collision(size, column, row, getBlockState().getValue(WaterPumpBlock.FACING));
+        return collision;
+    }
+
+    public static void tick(Level level, BlockPos pos, BlockState state, WaterPumpBlockEntity pump) {
+        if (level.isClientSide()) {
+            pump.animation.tick(state.getValue(WaterPumpBlock.POWERED));
+        } else {
+            if (level.getGameTime() % 5 == 0) pump.refresh();
+            if (pump.isController()) {
+                pump.tickSound((ServerLevel) level);
+                if (level.getGameTime() % WaterPhysicsConfig.pumpTickInterval() == 0) {
+                    PumpFlow.tick((ServerLevel) level, pos);
+                }
+            }
+        }
+    }
+
+    private void tickSound(ServerLevel level) {
+        if (!getBlockState().getValue(WaterPumpBlock.POWERED)) {
+            poweredTicks = 0;
+            return;
+        }
+        poweredTicks++;
+        if (poweredTicks < RUN_SOUND_DELAY
+                || (poweredTicks - RUN_SOUND_DELAY) % RUN_SOUND_INTERVAL != 0) return;
+        PumpStructure stage = PumpStructure.find(level, worldPosition);
+        boolean wet = PumpFlow.hasWater(level, stage);
+        float volume = (wet ? 0.38F : 0.22F) + stage.size() * (wet ? 0.10F : 0.07F);
+        float variation = (level.getRandom().nextFloat() - 0.5F) * 0.06F;
+        level.playSound(null, stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2),
+                wet ? SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT : SoundEvents.MINECART_RIDING,
+                SoundSource.BLOCKS, volume, (wet ? 0.78F : 0.72F) + variation);
+    }
+
+    public void refresh() {
+        if (level == null || level.isClientSide()) return;
+        PumpStructure stage = PumpStructure.find(level, worldPosition);
+        int nextColumn = PumpStructure.coordinate(worldPosition, PumpStructure.right(stage.facing()))
+                - PumpStructure.coordinate(stage.origin(), PumpStructure.right(stage.facing()));
+        int nextRow = PumpStructure.coordinate(worldPosition, PumpStructure.up(stage.facing()))
+                - PumpStructure.coordinate(stage.origin(), PumpStructure.up(stage.facing()));
+        int nextConnections = stage.connections(level);
+        boolean powered = stage.powered(level);
+        BlockState state = getBlockState();
+        if (state.getValue(WaterPumpBlock.POWERED) != powered) {
+            level.setBlock(worldPosition, state.setValue(WaterPumpBlock.POWERED, powered), Block.UPDATE_CLIENTS);
+            if (powered && nextColumn == 0 && nextRow == 0) {
+                poweredTicks = 0;
+                level.playSound(null, stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2),
+                        SoundEvents.COPPER_BULB_TURN_ON, SoundSource.BLOCKS,
+                        0.5F + stage.size() * 0.12F, 0.68F);
+            }
+        }
+        if (size != stage.size() || column != nextColumn || row != nextRow || connections != nextConnections) {
+            size = stage.size(); column = nextColumn; row = nextRow; connections = nextConnections;
+            collision = null;
+            setChanged();
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    @Override
+    public void setBlockState(BlockState state) { super.setBlockState(state); collision = null; }
+
+    @Override
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.putInt("Size", size); output.putInt("Column", column); output.putInt("Row", row);
+        output.putInt("Connections", connections);
+    }
+
+    @Override
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        size = Math.clamp(input.getIntOr("Size", 1), 1, 3);
+        column = Math.clamp(input.getIntOr("Column", 0), 0, size - 1);
+        row = Math.clamp(input.getIntOr("Row", 0), 0, size - 1);
+        connections = input.getIntOr("Connections", 0) & 3;
+        collision = null;
+    }
+
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
+}

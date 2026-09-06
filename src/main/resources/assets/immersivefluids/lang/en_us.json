@@ -1,4 +1,6 @@
 {
+  "death.attack.immersivefluids.water_pump": "%1$s was caught in a water pump",
+  "block.immersivefluids.water_pump": "Water Pump",
   "block.immersivefluids.finite_ice": "Finite Ice",
   "block.immersivefluids.layered_finite_ice": "Layered Finite Ice",
   "block.immersivefluids.rain_sensor": "Rain / Water Sensor",

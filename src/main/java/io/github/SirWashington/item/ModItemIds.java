@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 
 public final class ModItemIds {
+    public static final ResourceKey<Item> WATER_PUMP = create("water_pump");
     public static final ResourceKey<Item> FINITE_ICE = create("finite_ice");
     public static final ResourceKey<Item> RAIN_SENSOR = create("rain_sensor");
     public static final ResourceKey<Item> PRECISION_BUCKET = create("precision_bucket");

@@ -106,6 +106,16 @@ public class SpecialFlow {
                                             Map<BlockPos, Vec3> flowTransfers,
                                             BiPredicate<BlockPos, BlockPos> canFlowBetween,
                                             ToIntFunction<BlockPos> capacityAt) {
+        return planPush(waterPositions, pistonDirection, levelAt, maxDepth, maxVisitedWaterCells,
+                isLoaded, pistonOccupiedPositions, flowTransfers, canFlowBetween, capacityAt, Set.of());
+    }
+
+    static Map<BlockPos, Integer> planPush(List<BlockPos> waterPositions, Direction pistonDirection,
+                                         ToIntFunction<BlockPos> levelAt, int maxDepth, int maxVisitedWaterCells,
+                                         Predicate<BlockPos> isLoaded, Set<BlockPos> occupiedPositions,
+                                         Map<BlockPos, Vec3> flowTransfers,
+                                         BiPredicate<BlockPos, BlockPos> canFlowBetween,
+                                         ToIntFunction<BlockPos> capacityAt, Set<BlockPos> dryConduits) {
         if (maxDepth <= 0 || maxVisitedWaterCells <= 0) {
             throw new IllegalArgumentException("Piston-pressure limits must be positive");
         }
@@ -131,8 +141,8 @@ public class SpecialFlow {
 
             SearchResult search = findComponent(
                     start, volumes, pistonDirection, levelAt, maxDepth,
-                    maxVisitedWaterCells, isLoaded, pistonOccupiedPositions, visitedWaterCells,
-                    canFlowBetween
+                    maxVisitedWaterCells, isLoaded, occupiedPositions, visitedWaterCells,
+                    canFlowBetween, dryConduits
             );
             if (search == null) {
                 return null;
@@ -163,7 +173,7 @@ public class SpecialFlow {
         return plannedLevels;
     }
 
-    private static void applyPlan(ServerLevel level, Map<BlockPos, Integer> plannedLevels) {
+    static void applyPlan(ServerLevel level, Map<BlockPos, Integer> plannedLevels) {
         for (var entry : plannedLevels.entrySet()) {
             if (entry.getValue() == 0) {
                 FiniteWaterPhysics.setWaterLevel(level, entry.getKey(), 0);
@@ -181,7 +191,8 @@ public class SpecialFlow {
                                                 int maxDepth, int maxVisitedWaterCells,
                                                 Predicate<BlockPos> isLoaded, Set<BlockPos> pistonOccupiedPositions,
                                                 Set<BlockPos> visitedWaterCells,
-                                                BiPredicate<BlockPos, BlockPos> canFlowBetween) {
+                                                BiPredicate<BlockPos, BlockPos> canFlowBetween,
+                                                Set<BlockPos> dryConduits) {
         if (!isLoaded.test(seed) || !visitWater(seed, visitedWaterCells, maxVisitedWaterCells)) {
             return null;
         }
@@ -214,7 +225,7 @@ public class SpecialFlow {
                 }
 
                 int priority = state.priority() == rootPriority ? index : state.priority();
-                if (level == 0) {
+                if (level == 0 && !dryConduits.contains(next)) {
                     addOutletTargets(
                             targets, next, direction, state.depth() + 1, maxDepth,
                             priority, levelAt, isLoaded, pistonOccupiedPositions, state.path(),
@@ -223,7 +234,7 @@ public class SpecialFlow {
                     continue;
                 }
 
-                if (!visitWater(next, visitedWaterCells, maxVisitedWaterCells)) {
+                if (level > 0 && !visitWater(next, visitedWaterCells, maxVisitedWaterCells)) {
                     return null;
                 }
                 List<BlockPos> nextPath = appendPath(state.path(), next);
@@ -308,7 +319,7 @@ public class SpecialFlow {
         return List.copyOf(result);
     }
 
-    private static void recordFlowTransfers(Map<BlockPos, Vec3> transfers,
+    static void recordFlowTransfers(Map<BlockPos, Vec3> transfers,
                                             List<BlockPos> path, int accepted) {
         Map<BlockPos, Vec3> pathTransfers = new HashMap<>();
         for (int index = 1; index < path.size(); index++) {

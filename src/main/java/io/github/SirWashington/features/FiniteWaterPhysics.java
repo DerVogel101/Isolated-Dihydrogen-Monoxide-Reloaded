@@ -2,6 +2,7 @@ package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
 import io.github.SirWashington.block.ModBlockTags;
+import io.github.SirWashington.block.PumpStructure;
 import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
@@ -381,6 +382,9 @@ public final class FiniteWaterPhysics {
         Direction direction = Direction.getNearest(dx, dy, dz, Direction.NORTH);
         BlockState fromState = level.getBlockState(from);
         BlockState toState = level.getBlockState(to);
+        if (PumpFlow.blocksBackflow(fromState, direction) || PumpFlow.blocksBackflow(toState, direction)) {
+            return MAX_LEVEL;
+        }
         VoxelShape fromShape = flowShape(fromState, level, from);
         VoxelShape toShape = flowShape(toState, level, to);
         return flowBarrierLevel(
@@ -491,6 +495,11 @@ public final class FiniteWaterPhysics {
         recordCurrent(level, pos, units);
     }
 
+    static void applyPumpCurrent(ServerLevel level, BlockPos pos, Vec3 units, PumpStructure guide) {
+        FiniteWaterSounds.record(level, pos, Math.abs(units.x()) + Math.abs(units.y()) + Math.abs(units.z()));
+        recordCurrent(level, pos, units, true, guide);
+    }
+
     private static void applyCurrent(ServerLevel level, BlockPos from, BlockPos to, int movedUnits) {
         if (movedUnits > 0) {
             FiniteWaterSounds.record(level, from, movedUnits);
@@ -505,6 +514,10 @@ public final class FiniteWaterPhysics {
     }
 
     private static void recordCurrent(ServerLevel level, BlockPos pos, Vec3 units) {
+        recordCurrent(level, pos, units, false, null);
+    }
+
+    private static void recordCurrent(ServerLevel level, BlockPos pos, Vec3 units, boolean pumpTransfer, PumpStructure guide) {
         if (!WaterPhysicsConfig.currentsEnabled()) {
             return;
         }
@@ -514,6 +527,7 @@ public final class FiniteWaterPhysics {
         }
 
         long gameTime = level.getGameTime();
+        long expiresAt = gameTime + currentDurationTicks(pumpTransfer);
         Map<BlockPos, FlowCurrent> currents = ACTIVE_CURRENTS.computeIfAbsent(
                 level, ignored -> new HashMap<>()
         );
@@ -523,8 +537,16 @@ public final class FiniteWaterPhysics {
                     : combineCurrentUnits(existing.units(), limitedUnits);
             return combined.lengthSqr() == 0.0D
                     ? null
-                    : new FlowCurrent(combined, gameTime + WaterPhysicsConfig.currentDurationTicks());
+                    : new FlowCurrent(combined,
+                            existing == null ? expiresAt : Math.max(existing.expiresAt(), expiresAt),
+                            pumpTransfer ? expiresAt
+                                    : existing == null ? 0 : existing.dryPassageUntil(),
+                            pumpTransfer ? guide : existing == null ? null : existing.guide());
         });
+    }
+
+    static int currentDurationTicks(boolean pumpTransfer) {
+        return pumpTransfer ? WaterPhysicsConfig.pumpTickInterval() : WaterPhysicsConfig.currentDurationTicks();
     }
 
     private static void tickCurrents(ServerLevel level) {
@@ -539,28 +561,33 @@ public final class FiniteWaterPhysics {
 
         long gameTime = level.getGameTime();
         Map<Entity, Vec3> entityCurrents = new HashMap<>();
+        Set<Entity> guidedEntities = new HashSet<>();
         var iterator = currents.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
-            if (entry.getValue().expiresAt() <= gameTime || getWaterLevel(level, entry.getKey()) <= 0) {
+            if (entry.getValue().expiresAt() <= gameTime
+                    || entry.getValue().dryPassageUntil() <= gameTime && getWaterLevel(level, entry.getKey()) <= 0) {
                 iterator.remove();
                 continue;
             }
             for (Entity entity : level.getEntities(
                     (Entity) null, new AABB(entry.getKey()), Entity::isPushedByFluid
             )) {
+                if (entry.getValue().guide() != null && entry.getValue().dryPassageUntil() > gameTime) guidedEntities.add(entity);
                 entityCurrents.merge(
-                        entity, entry.getValue().units(), FiniteWaterPhysics::combineCurrentUnits
+                        entity, entry.getValue().guide() != null && entry.getValue().dryPassageUntil() > gameTime
+                                ? PumpFlow.guidedCurrent(entity, entry.getValue().guide(), entry.getValue().units())
+                                : entry.getValue().units(), FiniteWaterPhysics::combineCurrentUnits
                 );
             }
         }
         if (currents.isEmpty()) {
             ACTIVE_CURRENTS.remove(level);
         }
-        entityCurrents.forEach(FiniteWaterPhysics::pushWithCurrent);
+        entityCurrents.forEach((entity, units) -> pushWithCurrent(entity, units, guidedEntities.contains(entity)));
     }
 
-    private static void pushWithCurrent(Entity entity, Vec3 units) {
+    private static void pushWithCurrent(Entity entity, Vec3 units, boolean guided) {
         Vec3 strength = currentStrength(units);
         if (entity instanceof LivingEntity living) {
             var depthStrider = entity.registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
@@ -568,6 +595,9 @@ public final class FiniteWaterPhysics {
             strength = strength.scale(depthStriderCurrentMultiplier(
                     EnchantmentHelper.getEnchantmentLevel(depthStrider, living)));
         }
+        // Lifting onto the opening must overcome gravity while crossing a temporarily dry cell.
+        // Preserve configured acceleration/speed limits; ordinary currents keep their usual behavior.
+        if (guided && strength.y() > 0 && !entity.isInWater()) strength = strength.add(0, entity.getGravity(), 0);
         Vec3 movement = entity.getDeltaMovement();
         double nextX = cappedHorizontalSpeed(movement.x(), strength.x());
         double nextY = cappedVerticalSpeed(movement.y(), strength.y());
@@ -756,6 +786,6 @@ public final class FiniteWaterPhysics {
     private record DrainSearchNode(BlockPos pos, int pathLength, Direction firstStep) {
     }
 
-    private record FlowCurrent(Vec3 units, long expiresAt) {
+    private record FlowCurrent(Vec3 units, long expiresAt, long dryPassageUntil, PumpStructure guide) {
     }
 }

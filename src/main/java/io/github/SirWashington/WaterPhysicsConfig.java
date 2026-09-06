@@ -26,6 +26,12 @@ public final class WaterPhysicsConfig {
         return get(SERVER.pistonPressure.maxDepth);
     }
 
+    public static int pumpMaxDepth() { return get(SERVER.pump.maxDepth); }
+    public static int pumpMaxVisitedWaterCells() { return get(SERVER.pump.maxVisitedWaterCells); }
+    public static int pumpTickInterval() { return get(SERVER.pump.tickInterval); }
+    public static int pumpWaterUnitsPerCycle() { return get(SERVER.pump.waterUnitsPerCycle); }
+    public static boolean pumpStraightOnly() { return get(SERVER.pump.straightOnly); }
+
     public static boolean dripstoneEnabled() {
         return get(SERVER.dripstone.enabled);
     }
@@ -148,6 +154,9 @@ public final class WaterPhysicsConfig {
 
         @ConfigProperty(name = "piston_pressure", comment = "Limits for piston pressure searches")
         public final PistonPressure pistonPressure = new PistonPressure();
+
+        @ConfigProperty(name = "pump", comment = "Powered finite-water pumps; search limits add per powered stage in series")
+        public final Pump pump = new Pump();
     }
 
     public static final class Flow {
@@ -232,6 +241,19 @@ public final class WaterPhysicsConfig {
                 worldRestart = true
         )
         public final ListProperty<String> excludedBlocks = ListProperty.create(ListProperty.STRING);
+    }
+
+    public static final class Pump {
+        @ConfigProperty(name = "straight_only", comment = "Use a straight discharge scan instead of breadth-first pressure search; cannot route around bends")
+        public final BoolProperty straightOnly = BoolProperty.create(false);
+        @ConfigProperty(name = "max_depth", comment = "Pressure-search path length per powered stage")
+        public final IntProperty maxDepth = IntProperty.create(8, 1, Integer.MAX_VALUE);
+        @ConfigProperty(name = "max_visited_water_cells", comment = "Water cells visited per transfer, per powered stage")
+        public final IntProperty maxVisitedWaterCells = IntProperty.create(64, 1, Integer.MAX_VALUE);
+        @ConfigProperty(name = "tick_interval", comment = "Ticks between pump transfers")
+        public final IntProperty tickInterval = IntProperty.create(20, 1, 1200);
+        @ConfigProperty(name = "water_units_per_cycle", comment = "Water levels moved per constituent pump block per cycle; 8 equals one full block. Multiplied by square area (1, 4 or 9); series add reach, not throughput")
+        public final IntProperty waterUnitsPerCycle = IntProperty.create(8, 1, Integer.MAX_VALUE);
     }
 
     public static final class PistonPressure {

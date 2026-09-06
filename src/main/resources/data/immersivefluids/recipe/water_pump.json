@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["I#I", "#W#", "I#I"],
+  "key": {
+    "I": "minecraft:iron_block",
+    "#": "minecraft:iron_bars",
+    "W": "minecraft:waxed_copper_golem_statue"
+  },
+  "result": {
+    "id": "immersivefluids:water_pump",
+    "count": 2
+  }
+}

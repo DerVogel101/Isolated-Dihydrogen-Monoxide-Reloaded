@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Block;
 
 public final class ModBlockIds {
+    public static final ResourceKey<Block> WATER_PUMP = ResourceKey.create(Registries.BLOCK,
+            Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "water_pump"));
     public static final ResourceKey<Block> FINITE_ICE = ResourceKey.create(Registries.BLOCK,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "finite_ice"));
     public static final ResourceKey<Block> LAYERED_FINITE_ICE = ResourceKey.create(Registries.BLOCK,

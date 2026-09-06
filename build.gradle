@@ -12,7 +12,8 @@ def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
 def iceTest = providers.gradleProperty('iceTest').isPresent()
-if (dripstoneTest || cropTest || sensorTest || iceTest) {
+def pumpTest = providers.gradleProperty('pumpTest').isPresent()
+if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -34,9 +35,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest) {
 			server {
-				runDir iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -72,9 +73,14 @@ processResources {
 	inputs.property "cropTest", cropTest
 	inputs.property "sensorTest", sensorTest
 	inputs.property "iceTest", iceTest
+	inputs.property "pumpTest", pumpTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+		if (pumpTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterPumpServerTest"') }
+		}
 		if (iceTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteIceServerTest"') }
@@ -122,6 +128,23 @@ tasks.register('iceRenderSelfTest', JavaExec) {
 }
 
 check.dependsOn physicsSelfTest, iceRenderSelfTest
+
+tasks.register('pumpGeometrySelfTest', JavaExec) {
+	dependsOn clientTestClasses
+	classpath = sourceSets.clientTest.runtimeClasspath
+	mainClass = 'io.github.SirWashington.PumpGeometrySelfTest'
+}
+check.dependsOn pumpGeometrySelfTest
+
+if (pumpTest) {
+	tasks.named('runServer') {
+		doLast {
+			if (!file('build/pump-test-server/logs/latest.log').text.contains('WATER_PUMP_SERVER_TEST_PASS')) {
+				throw new GradleException('Pump regression failed; inspect build/pump-test-server/logs/latest.log')
+			}
+		}
+	}
+}
 
 if (iceTest) {
 	tasks.named('runServer') {
