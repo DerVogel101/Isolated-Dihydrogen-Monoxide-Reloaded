@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": [
+    "#C#",
+    "/ /",
+    "# #"
+  ],
+  "key": {
+    "#": "minecraft:iron_ingot",
+    "C": "minecraft:comparator",
+    "/": "minecraft:waxed_lightning_rod"
+  },
+  "result": {
+    "id": "immersivefluids:rain_sensor"
+  }
+}
