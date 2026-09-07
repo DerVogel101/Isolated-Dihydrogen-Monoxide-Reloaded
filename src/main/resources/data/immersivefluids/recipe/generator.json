@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["#D#", "uCu", "IoI"],
+  "key": {
+    "#": "minecraft:iron_trapdoor",
+    "D": "minecraft:dispenser",
+    "u": "minecraft:water_bucket",
+    "C": "minecraft:cauldron",
+    "I": "minecraft:iron_block",
+    "o": "minecraft:amethyst_shard"
+  },
+  "result": {"id": "immersivefluids:generator"}
+}

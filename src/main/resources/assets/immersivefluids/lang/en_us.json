@@ -3,6 +3,8 @@
   "block.immersivefluids.water_valve": "Water Valve",
   "block.immersivefluids.water_pump": "Water Pump",
   "block.immersivefluids.muted_water_pump": "Muted Water Pump",
+  "block.immersivefluids.generator": "Dihydrogen Monoxide Assembler",
+  "block.immersivefluids.muted_generator": "Muted Dihydrogen Monoxide Assembler",
   "item.immersivefluids.compressed_wool": "Compressed Wool",
   "item.immersivefluids.double_compressed_wool": "Double Compressed Wool",
   "item.immersivefluids.insulator_shard": "Insulator Shard",

@@ -1,7 +1,6 @@
-1. Water Converter
-2. Rain
-3. make water compatible with shaders
+1. Rain
+2. make water compatible with shaders
    - at least iris with complementary unbound and integrated pbr+
-4. Remove Herobrine
-5. Optimize Performance
-6. Extinguish Fire
+3. Remove Herobrine
+4. Optimize Performance
+5. Extinguish Fire

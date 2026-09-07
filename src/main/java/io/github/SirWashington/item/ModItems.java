@@ -19,6 +19,10 @@ public class ModItems {
             properties -> new BlockItem(ModBlocks.WATER_PUMP, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item MUTED_WATER_PUMP = register(ModItemIds.MUTED_WATER_PUMP,
             properties -> new BlockItem(ModBlocks.MUTED_WATER_PUMP, properties), new Item.Properties().useBlockDescriptionPrefix());
+    public static final Item DIHYDROGEN_MONOXIDE_ASSEMBLER = register(ModItemIds.DIHYDROGEN_MONOXIDE_ASSEMBLER,
+            properties -> new BlockItem(ModBlocks.DIHYDROGEN_MONOXIDE_ASSEMBLER, properties), new Item.Properties().useBlockDescriptionPrefix());
+    public static final Item MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER = register(ModItemIds.MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER,
+            properties -> new BlockItem(ModBlocks.MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item COMPRESSED_WOOL = register(ModItemIds.COMPRESSED_WOOL, Item::new, new Item.Properties());
     public static final Item DOUBLE_COMPRESSED_WOOL = register(ModItemIds.DOUBLE_COMPRESSED_WOOL, Item::new, new Item.Properties());
     public static final Item INSULATOR_SHARD = register(ModItemIds.INSULATOR_SHARD, Item::new, new Item.Properties());
@@ -53,6 +57,7 @@ public class ModItems {
         });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> {
             entries.accept(WATER_PUMP); entries.accept(MUTED_WATER_PUMP); entries.accept(WATER_VALVE);
+            entries.accept(DIHYDROGEN_MONOXIDE_ASSEMBLER); entries.accept(MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER);
         });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(entries -> entries.accept(FINITE_ICE));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->

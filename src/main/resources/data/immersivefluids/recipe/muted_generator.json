@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["#", "G", "#"],
+  "key": {"#": "immersivefluids:insulator_shard", "G": "immersivefluids:generator"},
+  "result": {"id": "immersivefluids:muted_generator"}
+}

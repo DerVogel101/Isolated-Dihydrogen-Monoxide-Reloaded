@@ -13,8 +13,9 @@ def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
 def iceTest = providers.gradleProperty('iceTest').isPresent()
 def valveTest = providers.gradleProperty('valveTest').isPresent()
+def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
-if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest) {
+if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -36,9 +37,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest) {
 			server {
-				runDir valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -76,6 +77,7 @@ processResources {
 	inputs.property "iceTest", iceTest
 	inputs.property "pumpTest", pumpTest
 	inputs.property "valveTest", valveTest
+	inputs.property "generatorTest", generatorTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
@@ -83,6 +85,10 @@ processResources {
             filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
                     '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterValveServerTest"') }
         }
+		if (generatorTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DihydrogenMonoxideAssemblerServerTest"') }
+		}
 		if (pumpTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterPumpServerTest"') }
@@ -236,6 +242,16 @@ if (valveTest) {
         doLast {
             if (!file('build/valve-test-server/logs/latest.log').text.contains('WATER_VALVE_SERVER_TEST_PASS')) {
                 throw new GradleException('Valve regression failed; inspect build/valve-test-server/logs/latest.log')
+            }
+        }
+    }
+}
+
+if (generatorTest) {
+    tasks.named('runServer') {
+        doLast {
+            if (!file('build/generator-test-server/logs/latest.log').text.contains('DIHYDROGEN_MONOXIDE_ASSEMBLER_SERVER_TEST_PASS')) {
+                throw new GradleException('Assembler regression failed; inspect build/generator-test-server/logs/latest.log')
             }
         }
     }

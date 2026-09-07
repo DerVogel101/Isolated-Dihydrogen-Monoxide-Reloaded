@@ -1,0 +1,7 @@
+{
+  "parent": "immersivefluids:block/generator",
+  "textures": {
+    "chamber": "minecraft:block/white_wool",
+    "cap": "minecraft:block/gray_wool"
+  }
+}

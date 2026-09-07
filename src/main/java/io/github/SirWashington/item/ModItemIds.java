@@ -10,6 +10,8 @@ public final class ModItemIds {
     public static final ResourceKey<Item> WATER_VALVE = create("water_valve");
     public static final ResourceKey<Item> WATER_PUMP = create("water_pump");
     public static final ResourceKey<Item> MUTED_WATER_PUMP = create("muted_water_pump");
+    public static final ResourceKey<Item> DIHYDROGEN_MONOXIDE_ASSEMBLER = create("generator");
+    public static final ResourceKey<Item> MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER = create("muted_generator");
     public static final ResourceKey<Item> COMPRESSED_WOOL = create("compressed_wool");
     public static final ResourceKey<Item> DOUBLE_COMPRESSED_WOOL = create("double_compressed_wool");
     public static final ResourceKey<Item> INSULATOR_SHARD = create("insulator_shard");

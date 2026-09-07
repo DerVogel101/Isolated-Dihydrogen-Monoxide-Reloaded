@@ -19,6 +19,12 @@ public final class ModBlocks {
     public static final Block MUTED_WATER_PUMP = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.MUTED_WATER_PUMP,
             new WaterPumpBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
                     .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.MUTED_WATER_PUMP), true));
+    public static final Block DIHYDROGEN_MONOXIDE_ASSEMBLER = Registry.register(BuiltInRegistries.BLOCK,
+            ModBlockIds.DIHYDROGEN_MONOXIDE_ASSEMBLER, new DihydrogenMonoxideAssemblerBlock(
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.DISPENSER).noOcclusion().setId(ModBlockIds.DIHYDROGEN_MONOXIDE_ASSEMBLER), false));
+    public static final Block MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER = Registry.register(BuiltInRegistries.BLOCK,
+            ModBlockIds.MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER, new DihydrogenMonoxideAssemblerBlock(
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.DISPENSER).noOcclusion().setId(ModBlockIds.MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER), true));
     public static final Block FINITE_ICE = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.FINITE_ICE,
             new FiniteIceBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.ICE).noLootTable().setId(ModBlockIds.FINITE_ICE)));
     public static final Block LAYERED_FINITE_ICE = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.LAYERED_FINITE_ICE,
