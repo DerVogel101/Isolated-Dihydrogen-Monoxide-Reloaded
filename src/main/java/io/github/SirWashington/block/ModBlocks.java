@@ -15,7 +15,10 @@ public final class ModBlocks {
                     .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.WATER_VALVE)));
     public static final Block WATER_PUMP = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.WATER_PUMP,
             new WaterPumpBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
-                    .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.WATER_PUMP)));
+                    .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.WATER_PUMP), false));
+    public static final Block MUTED_WATER_PUMP = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.MUTED_WATER_PUMP,
+            new WaterPumpBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
+                    .strength(3F).noOcclusion().dynamicShape().setId(ModBlockIds.MUTED_WATER_PUMP), true));
     public static final Block FINITE_ICE = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.FINITE_ICE,
             new FiniteIceBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.ICE).noLootTable().setId(ModBlockIds.FINITE_ICE)));
     public static final Block LAYERED_FINITE_ICE = Registry.register(BuiltInRegistries.BLOCK, ModBlockIds.LAYERED_FINITE_ICE,

@@ -24,14 +24,19 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class WaterPumpBlock extends WaterloggedTransparentBlock implements EntityBlock {
-    public static final MapCodec<WaterPumpBlock> CODEC = simpleCodec(WaterPumpBlock::new);
+    public static final MapCodec<WaterPumpBlock> CODEC = simpleCodec(properties -> new WaterPumpBlock(properties, false));
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-    public WaterPumpBlock(Properties properties) {
+    private final boolean muted;
+
+    public WaterPumpBlock(Properties properties, boolean muted) {
         super(properties);
+        this.muted = muted;
         registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH).setValue(POWERED, false));
     }
+
+    public boolean muted() { return muted; }
 
     @Override
     public MapCodec<WaterPumpBlock> codec() { return CODEC; }

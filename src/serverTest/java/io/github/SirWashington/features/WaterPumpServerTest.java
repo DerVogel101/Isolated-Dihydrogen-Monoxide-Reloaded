@@ -44,6 +44,7 @@ public final class WaterPumpServerTest implements ModInitializer {
             try {
                 placementAndLoot(level);
                 crafting(level);
+                mutedPumpStaysSeparate(level);
                 for (Direction facing : Direction.values()) {
                     for (int size = 1; size <= 3; size++) checkStage(level, facing, size);
                     parallel(level, facing);
@@ -215,7 +216,32 @@ public final class WaterPumpServerTest implements ModInitializer {
                 net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level).orElseThrow();
         var output = recipe.value().assemble(input);
         expect(output.is(ModItems.WATER_PUMP) && output.getCount() == 2, "Supplied recipe crafts two pumps");
+        var mutedInput = net.minecraft.world.item.crafting.CraftingInput.of(1, 3, java.util.List.of(
+                new ItemStack(ModItems.INSULATOR_SHARD), new ItemStack(ModItems.WATER_PUMP), new ItemStack(ModItems.INSULATOR_SHARD)));
+        var mutedRecipe = level.getServer().getRecipeManager().getRecipeFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING, mutedInput, level).orElseThrow();
+        expect(mutedRecipe.value().assemble(mutedInput).is(ModItems.MUTED_WATER_PUMP), "Muted-pump recipe crafts a muted pump");
+        for (String id : java.util.List.of("compressed_wool", "double_compressed_wool", "insulator_shard",
+                "muted_water_pump", "white_wool_from_double_compressed_wool_stonecutting")) {
+            expect(level.getServer().getRecipeManager().byKey(net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.RECIPE,
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("immersivefluids", id))).isPresent(),
+                    "Supplied recipe loads: " + id);
+        }
         System.out.println("PUMP_CRAFTING_PASS");
+    }
+
+    private static void mutedPumpStaysSeparate(ServerLevel level) {
+        clear(level);
+        level.setBlock(POS, ModBlocks.WATER_PUMP.defaultBlockState().setValue(WaterPumpBlock.FACING, Direction.NORTH), Block.UPDATE_ALL);
+        level.setBlock(POS.north(), ModBlocks.MUTED_WATER_PUMP.defaultBlockState().setValue(WaterPumpBlock.FACING, Direction.NORTH), Block.UPDATE_ALL);
+        refresh(level);
+        expect(PumpStructure.find(level, POS).size() == 1 && PumpStructure.find(level, POS.north()).size() == 1,
+                "Muted and normal pumps do not form a series");
+        expect(pump(level, POS).connections() == 0 && pump(level, POS.north()).connections() == 0,
+                "Muted and normal pumps have no multiblock connections");
+        expect(((WaterPumpBlock) ModBlocks.MUTED_WATER_PUMP).muted(), "Muted pump suppresses its pump sounds");
+        System.out.println("MUTED_PUMP_SEPARATION_PASS");
     }
 
     private static void parallel(ServerLevel level, Direction facing) {

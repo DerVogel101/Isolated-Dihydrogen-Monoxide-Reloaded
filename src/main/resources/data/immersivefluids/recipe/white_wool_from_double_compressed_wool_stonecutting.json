@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "immersivefluids:double_compressed_wool",
+  "result": {"id": "minecraft:white_wool", "count": 40}
+}

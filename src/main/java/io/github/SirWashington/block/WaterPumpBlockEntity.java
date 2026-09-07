@@ -28,7 +28,7 @@ public final class WaterPumpBlockEntity extends BlockEntity {
     private static final int RUN_SOUND_INTERVAL = 20;
     public static final BlockEntityType<WaterPumpBlockEntity> TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "water_pump"),
-            FabricBlockEntityTypeBuilder.create(WaterPumpBlockEntity::new, ModBlocks.WATER_PUMP).build());
+            FabricBlockEntityTypeBuilder.create(WaterPumpBlockEntity::new, ModBlocks.WATER_PUMP, ModBlocks.MUTED_WATER_PUMP).build());
     private int size = 1, column, row, connections;
     private int poweredTicks;
     private VoxelShape collision;
@@ -62,6 +62,7 @@ public final class WaterPumpBlockEntity extends BlockEntity {
     }
 
     private void tickSound(ServerLevel level) {
+        if (muted()) return;
         if (!getBlockState().getValue(WaterPumpBlock.POWERED)) {
             poweredTicks = 0;
             return;
@@ -71,11 +72,19 @@ public final class WaterPumpBlockEntity extends BlockEntity {
                 || (poweredTicks - RUN_SOUND_DELAY) % RUN_SOUND_INTERVAL != 0) return;
         PumpStructure stage = PumpStructure.find(level, worldPosition);
         boolean wet = PumpFlow.hasWater(level, stage);
-        float volume = (wet ? 0.38F : 0.22F) + stage.size() * (wet ? 0.10F : 0.07F);
+        float mechanicalVolume = 0.22F + stage.size() * 0.07F;
         float variation = (level.getRandom().nextFloat() - 0.5F) * 0.06F;
-        level.playSound(null, stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2),
-                wet ? SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT : SoundEvents.MINECART_RIDING,
-                SoundSource.BLOCKS, volume, (wet ? 0.78F : 0.72F) + variation);
+        BlockPos soundPos = stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2);
+        if (wet) {
+            // Volume above one also extends vanilla's attenuation radius: 1.5 gives 24 blocks.
+            level.playSound(null, soundPos, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
+                    SoundSource.BLOCKS, 1.5F, 0.78F + variation);
+            level.playSound(null, soundPos, SoundEvents.MINECART_RIDING,
+                    SoundSource.BLOCKS, mechanicalVolume * 0.45F, 0.76F + variation);
+        } else {
+            level.playSound(null, soundPos, SoundEvents.MINECART_RIDING,
+                    SoundSource.BLOCKS, mechanicalVolume, 0.72F + variation);
+        }
     }
 
     public void refresh() {
@@ -90,7 +99,7 @@ public final class WaterPumpBlockEntity extends BlockEntity {
         BlockState state = getBlockState();
         if (state.getValue(WaterPumpBlock.POWERED) != powered) {
             level.setBlock(worldPosition, state.setValue(WaterPumpBlock.POWERED, powered), Block.UPDATE_CLIENTS);
-            if (powered && nextColumn == 0 && nextRow == 0) {
+            if (powered && nextColumn == 0 && nextRow == 0 && !muted()) {
                 poweredTicks = 0;
                 level.playSound(null, stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2),
                         SoundEvents.COPPER_BULB_TURN_ON, SoundSource.BLOCKS,
@@ -103,6 +112,10 @@ public final class WaterPumpBlockEntity extends BlockEntity {
             setChanged();
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
+    }
+
+    private boolean muted() {
+        return getBlockState().getBlock() instanceof WaterPumpBlock pump && pump.muted();
     }
 
     @Override

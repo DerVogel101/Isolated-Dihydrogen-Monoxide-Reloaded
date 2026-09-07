@@ -32,7 +32,9 @@ Find **Water Pump** in the Redstone creative tab, or use:
 - Powering a stage plays a metallic startup sound from its rotor. After the
   twenty-tick startup, every powered rotor emits a steady mechanical dry-running
   sound or a heavier whirlpool sound while finite water is present in its rotor
-  or unobstructed three-cell intake. Larger rotors are louder.
+  or unobstructed three-cell intake. The wet sound carries about 24 blocks, 50%
+  farther than the normal 16-block range, and includes a quiet mechanical rumble.
+  Larger dry rotors are louder.
 - Break a member to disassemble the square; replace it to reform. A pickaxe
   returns one pump item per block. Craft two pumps using four iron blocks in the
   corners, four iron bars at the sides, and a waxed copper golem statue in the center.
@@ -44,7 +46,8 @@ Find **Water Pump** in the Redstone creative tab, or use:
   other normal melee protection. Damage starts on contact and repeats every 8
   ticks while occupied. A shared cooldown prevents overlapping members/stages
   from multiplying hits. Unpowered pumps do no damage. Redstone state controls
-  the hazard; the client animation is visual only.
+  the hazard; the client animation is visual only. Pump damage is attributed to
+  a non-connected `[Water Pump]` fake player, enabling player-kill loot and experience.
 - Powered pumps draw finite water from inside the assembly and from up to three
   cells behind each intake lane, then push it through the rotor into the discharge side.
   Dry gaps are allowed. An unloaded cell, solid obstruction, closed face or non-finite

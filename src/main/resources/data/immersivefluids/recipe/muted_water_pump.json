@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["#", "W", "#"],
+  "key": {
+    "#": "immersivefluids:insulator_shard",
+    "W": "immersivefluids:water_pump"
+  },
+  "result": {"id": "immersivefluids:muted_water_pump"}
+}

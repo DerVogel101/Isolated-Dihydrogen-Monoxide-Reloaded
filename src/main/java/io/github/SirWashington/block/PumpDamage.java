@@ -1,5 +1,7 @@
 package io.github.SirWashington.block;
 
+import com.mojang.authlib.GameProfile;
+import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -14,14 +16,23 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 /** Ordinary player-melee damage with pump-local knockback/cooldown exceptions. */
 public final class PumpDamage extends DamageSource {
+    private static final GameProfile PUMP_PLAYER = new GameProfile(
+            UUID.fromString("7bf4d759-f922-4ec2-a68c-8dc2537acfb8"), "[Water Pump]");
     private static final Map<LivingEntity, Long> LAST_CONTACT = new WeakHashMap<>();
 
     private PumpDamage(ServerLevel level, Vec3 center) {
-        super(level.damageSources().source(DamageTypes.PLAYER_ATTACK).typeHolder(), center);
+        super(level.damageSources().source(DamageTypes.PLAYER_ATTACK).typeHolder(), attacker(level, center));
+    }
+
+    private static FakePlayer attacker(ServerLevel level, Vec3 center) {
+        FakePlayer player = FakePlayer.get(level, PUMP_PLAYER);
+        player.setPos(center);
+        return player;
     }
 
     @Override

@@ -2,6 +2,7 @@ package io.github.SirWashington.features;
 
 import com.mojang.authlib.GameProfile;
 import io.github.SirWashington.block.*;
+import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.Connection;
@@ -102,6 +103,11 @@ final class WaterPumpContactChecks implements AutoCloseable {
             var source = players[i].getLastDamageSource();
             expect(source instanceof PumpDamage && source.is(DamageTypes.PLAYER_ATTACK)
                     && !source.is(DamageTypeTags.BYPASSES_ARMOR), "Exact player-melee damage type without armor bypass");
+            expect(source.getEntity() instanceof FakePlayer fakePlayer
+                            && level.getServer().getPlayerList().getPlayer(fakePlayer.getUUID()) == null
+                            && mobs[i].getLastHurtByPlayer() instanceof FakePlayer
+                            && mobs[i].getLastHurtByPlayerMemoryTime() > 0,
+                    "Pump damage records a fake-player kill for mob loot and experience");
             if (ticks == 20) {
                 level.removeBlock(stages[i].origin().below(), false);
                 refresh(stages[i]);

@@ -17,6 +17,11 @@ public class ModItems {
             properties -> new BlockItem(ModBlocks.WATER_VALVE, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item WATER_PUMP = register(ModItemIds.WATER_PUMP,
             properties -> new BlockItem(ModBlocks.WATER_PUMP, properties), new Item.Properties().useBlockDescriptionPrefix());
+    public static final Item MUTED_WATER_PUMP = register(ModItemIds.MUTED_WATER_PUMP,
+            properties -> new BlockItem(ModBlocks.MUTED_WATER_PUMP, properties), new Item.Properties().useBlockDescriptionPrefix());
+    public static final Item COMPRESSED_WOOL = register(ModItemIds.COMPRESSED_WOOL, Item::new, new Item.Properties());
+    public static final Item DOUBLE_COMPRESSED_WOOL = register(ModItemIds.DOUBLE_COMPRESSED_WOOL, Item::new, new Item.Properties());
+    public static final Item INSULATOR_SHARD = register(ModItemIds.INSULATOR_SHARD, Item::new, new Item.Properties());
     public static final Item FINITE_ICE = register(ModItemIds.FINITE_ICE,
             properties -> new BlockItem(ModBlocks.FINITE_ICE, properties), new Item.Properties().useBlockDescriptionPrefix());
     public static final Item RAIN_SENSOR = register(ModItemIds.RAIN_SENSOR,
@@ -41,7 +46,14 @@ public class ModItems {
     }
 
     public static void initialize() {
-        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> { entries.accept(WATER_PUMP); entries.accept(WATER_VALVE); });
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.INGREDIENTS).register(entries -> {
+            entries.accept(COMPRESSED_WOOL);
+            entries.accept(DOUBLE_COMPRESSED_WOOL);
+            entries.accept(INSULATOR_SHARD);
+        });
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> {
+            entries.accept(WATER_PUMP); entries.accept(MUTED_WATER_PUMP); entries.accept(WATER_VALVE);
+        });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(entries -> entries.accept(FINITE_ICE));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->
                 entries.accept(RAIN_SENSOR));

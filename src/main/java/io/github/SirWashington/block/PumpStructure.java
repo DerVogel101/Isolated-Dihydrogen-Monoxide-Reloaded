@@ -34,10 +34,10 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
         return new PumpStructure(square.origin(), square.size(), square.facing());
     }
 
-    private static boolean matches(BlockGetter level, BlockPos pos, Direction facing) {
+    private boolean matches(BlockGetter level, BlockPos pos, Direction facing) {
         if (level instanceof LevelReader reader && !reader.hasChunkAt(pos)) return false;
         BlockState state = level.getBlockState(pos);
-        return state.getBlock() instanceof WaterPumpBlock && state.getValue(WaterPumpBlock.FACING) == facing;
+        return state.is(level.getBlockState(origin).getBlock()) && state.getValue(WaterPumpBlock.FACING) == facing;
     }
 
     private boolean alignedStage(BlockGetter level, int distance) {
@@ -71,5 +71,9 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
             stages.add(new PumpStructure(origin.relative(facing, offset), size, facing));
         }
         return List.copyOf(stages);
+    }
+
+    public boolean muted(BlockGetter level) {
+        return level.getBlockState(origin).getBlock() instanceof WaterPumpBlock pump && pump.muted();
     }
 }

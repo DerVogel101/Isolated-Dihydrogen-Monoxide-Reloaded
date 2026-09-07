@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["###", "###", "###"],
+  "key": {"#": "immersivefluids:compressed_wool"},
+  "result": {"id": "immersivefluids:double_compressed_wool"}
+}

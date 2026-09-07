@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["#DH", " / "],
+  "key": {
+    "#": "minecraft:shears",
+    "D": "immersivefluids:double_compressed_wool",
+    "H": "minecraft:honeycomb",
+    "/": "minecraft:breeze_rod"
+  },
+  "result": {"id": "immersivefluids:insulator_shard", "count": 9}
+}

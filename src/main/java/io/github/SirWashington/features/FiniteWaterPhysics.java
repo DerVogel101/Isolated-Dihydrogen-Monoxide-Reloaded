@@ -496,7 +496,11 @@ public final class FiniteWaterPhysics {
     }
 
     static void applyPumpCurrent(ServerLevel level, BlockPos pos, Vec3 units, PumpStructure guide) {
-        FiniteWaterSounds.record(level, pos, Math.abs(units.x()) + Math.abs(units.y()) + Math.abs(units.z()));
+        applyPumpCurrent(level, pos, units, guide, guide != null && guide.muted(level));
+    }
+
+    static void applyPumpCurrent(ServerLevel level, BlockPos pos, Vec3 units, PumpStructure guide, boolean muted) {
+        if (!muted) FiniteWaterSounds.record(level, pos, Math.abs(units.x()) + Math.abs(units.y()) + Math.abs(units.z()));
         recordCurrent(level, pos, units, true, guide);
     }
 

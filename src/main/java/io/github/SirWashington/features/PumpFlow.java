@@ -142,8 +142,9 @@ public final class PumpFlow {
             }
         });
         spreadAxialCurrent(level, intake, currents);
+        boolean muted = intake.muted(level);
         currents.forEach((pos, units) -> FiniteWaterPhysics.applyPumpCurrent(level, pos, units,
-                PumpStructure.coordinate(pos, facing) <= outletPlane ? intake : null));
+                PumpStructure.coordinate(pos, facing) <= outletPlane ? intake : null, muted));
         return true;
     }
 

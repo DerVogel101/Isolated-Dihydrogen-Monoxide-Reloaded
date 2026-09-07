@@ -4,3 +4,5 @@
    - at least iris with complementary unbound and integrated pbr+
 4. Remove Herobrine
 5. Optimize Performance
+6. Extinguish Fire
+7. sensor recipe
