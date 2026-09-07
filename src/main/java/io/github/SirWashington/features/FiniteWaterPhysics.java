@@ -20,6 +20,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.AbstractCandleBlock;
+import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
@@ -249,6 +250,7 @@ public final class FiniteWaterPhysics {
             return;
         }
 
+        extinguishAdjacentFires(level, pos, center);
 
         if (WaterPhysicsConfig.doorPressureEnabled()
                 && center >= WaterPhysicsConfig.doorPressureRequiredLevelPerHalf()) {
@@ -273,6 +275,23 @@ public final class FiniteWaterPhysics {
             return;
         }
         equalizeHorizontally(level, pos, center);
+    }
+
+    static boolean shouldExtinguishFire(BlockState state, int amount) {
+        return amount >= WaterPhysicsConfig.extinguishingMinimumLevel()
+                && state.getBlock() instanceof BaseFireBlock;
+    }
+
+    private static void extinguishAdjacentFires(ServerLevel level, BlockPos waterPos, int amount) {
+        if (amount < WaterPhysicsConfig.extinguishingMinimumLevel()) {
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            BlockPos firePos = waterPos.relative(direction);
+            if (shouldExtinguishFire(level.getBlockState(firePos), amount)) {
+                level.removeBlock(firePos, false);
+            }
+        }
     }
 
     private static void openPressurizedDoor(ServerLevel level, BlockPos waterPos) {

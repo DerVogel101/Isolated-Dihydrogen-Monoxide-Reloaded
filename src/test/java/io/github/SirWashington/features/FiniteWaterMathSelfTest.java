@@ -123,6 +123,7 @@ public final class FiniteWaterMathSelfTest {
         verifyFiniteWaterloggedPlantCoverage();
         verifyBlockBehaviorTags();
         verifyFiniteWaterEntityCompatibilityMixin();
+        verifyFireExtinguishing();
         verifyWaterPhysicsConfig();
     }
 
@@ -563,6 +564,16 @@ public final class FiniteWaterMathSelfTest {
                 || FiniteWaterPhysics.isVanillaWater(Fluids.EMPTY)
                 || FiniteWaterPhysics.isVanillaLava(Fluids.EMPTY)) {
             throw new AssertionError("Finite-water contact fluid classification is invalid");
+        }
+    }
+
+    private static void verifyFireExtinguishing() {
+        int threshold = WaterPhysicsConfig.extinguishingMinimumLevel();
+        if (FiniteWaterPhysics.shouldExtinguishFire(Blocks.FIRE.defaultBlockState(), threshold - 1)
+                || !FiniteWaterPhysics.shouldExtinguishFire(Blocks.FIRE.defaultBlockState(), threshold)
+                || !FiniteWaterPhysics.shouldExtinguishFire(Blocks.SOUL_FIRE.defaultBlockState(), threshold)
+                || FiniteWaterPhysics.shouldExtinguishFire(Blocks.TORCH.defaultBlockState(), 8)) {
+            throw new AssertionError("Only finite water at the configured threshold must extinguish free fire");
         }
     }
 

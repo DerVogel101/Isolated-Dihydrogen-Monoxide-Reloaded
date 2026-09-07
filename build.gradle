@@ -15,7 +15,8 @@ def iceTest = providers.gradleProperty('iceTest').isPresent()
 def valveTest = providers.gradleProperty('valveTest').isPresent()
 def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
-if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest) {
+def fireTest = providers.gradleProperty('fireTest').isPresent()
+if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -37,9 +38,9 @@ loom {
 	splitEnvironmentSourceSets()
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
 			server {
-				runDir generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -78,6 +79,7 @@ processResources {
 	inputs.property "pumpTest", pumpTest
 	inputs.property "valveTest", valveTest
 	inputs.property "generatorTest", generatorTest
+	inputs.property "fireTest", fireTest
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
@@ -88,6 +90,10 @@ processResources {
 		if (generatorTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DihydrogenMonoxideAssemblerServerTest"') }
+		}
+		if (fireTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteWaterFireServerTest"') }
 		}
 		if (pumpTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
@@ -252,6 +258,16 @@ if (generatorTest) {
         doLast {
             if (!file('build/generator-test-server/logs/latest.log').text.contains('DIHYDROGEN_MONOXIDE_ASSEMBLER_SERVER_TEST_PASS')) {
                 throw new GradleException('Assembler regression failed; inspect build/generator-test-server/logs/latest.log')
+            }
+        }
+    }
+}
+
+if (fireTest) {
+    tasks.named('runServer') {
+        doLast {
+            if (!file('build/fire-test-server/logs/latest.log').text.contains('FINITE_WATER_FIRE_SERVER_TEST_PASS')) {
+                throw new GradleException('Fire extinguishing regression failed; inspect build/fire-test-server/logs/latest.log')
             }
         }
     }
