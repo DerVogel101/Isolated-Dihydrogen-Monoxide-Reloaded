@@ -30,7 +30,8 @@
     ]
   },
   "mixins": [
-    "waterphysics.mixins.json"
+    "waterphysics.mixins.json",
+    { "config": "immersivefluids.iris.mixins.json", "environment": "client" }
   ],
 
   "depends": {

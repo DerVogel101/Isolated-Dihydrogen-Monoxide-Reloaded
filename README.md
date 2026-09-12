@@ -59,6 +59,16 @@ and five water levels should remain. Check that water and ice render above the s
 
 ## Configuration
 
+### Shaders
+
+The optional client integration targets Iris 1.11.2 + Sodium 0.9.1 on Minecraft 26.2,
+with Complementary Unbound r5.9 and Euphoria Patches 1.10.0. Select **RP Support → Integrated PBR+**.
+No extra resource pack or shader-file edits are needed. Other Iris/Sodium versions or changed
+shader material sources disable this version-sensitive integration and log the reason.
+See [shader compatibility and validation](docs/shader-compatibility.md) for coverage and test commands.
+
+### Physics
+
 Global physics values are stored in `config/immersivefluids.server.toml` and can also be edited
 through Configured. They cover flow timing, normal and extended drain-search limits, extinguishing,
 door pressure, entity-current strength and speed limits, waterlogging exclusions, and piston pressure.

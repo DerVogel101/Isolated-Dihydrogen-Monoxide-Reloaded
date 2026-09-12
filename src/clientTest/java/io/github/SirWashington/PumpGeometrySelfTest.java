@@ -135,6 +135,8 @@ public final class PumpGeometrySelfTest {
         double radius = PumpGeometry.openingRadius(size);
         expect(radius > size / 2.0 - .05, "Opening nearly reaches the case on all four sides");
         for (int connections = 0; connections < 4; connections++) {
+            expect(PumpGeometry.housing(size, connections).size() == 340 - 132 * Integer.bitCount(connections),
+                    "Merged housing quad count");
             double frontArea = 0, backArea = 0;
             for (PumpGeometry.Quad q : PumpGeometry.housing(size, connections)) {
                 Vec3 cross = q.b().subtract(q.a()).cross(q.c().subtract(q.a()));

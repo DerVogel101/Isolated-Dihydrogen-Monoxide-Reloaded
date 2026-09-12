@@ -16,11 +16,13 @@ def valveTest = providers.gradleProperty('valveTest').isPresent()
 def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
 def fireTest = providers.gradleProperty('fireTest').isPresent()
+def shaderTest = providers.gradleProperty('shaderTest').orNull
 if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
 repositories {
+	maven { url = 'https://api.modrinth.com/maven' }
 	exclusiveContent {
 		forRepository {
 			maven {
@@ -36,6 +38,10 @@ repositories {
 
 loom {
 	splitEnvironmentSourceSets()
+	if (shaderTest != null) {
+		sourceSets.client.java.srcDir 'src/shaderTest/java'
+		sourceSets.client.resources.srcDir 'src/shaderTest/resources'
+	}
 
 	runs {
 		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
@@ -45,6 +51,8 @@ loom {
 		}
 		client {
 			ideConfigGenerated false
+			if (shaderTest != null) runDir "build/shader-test-client/${shaderTest}"
+			if (shaderTest in ['complementary', 'euphoria']) vmArg '-Dimmersivefluids.shaderProbePack=true'
 		}
 	}
 
@@ -66,6 +74,9 @@ dependencies {
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	implementation "curse.maven:framework-549225:${project.framework_file_id}"
 	testRuntimeOnly "com.electronwill.night-config:core:3.8.3"
+	// Optional client integration: never bundle Iris/Sodium or require them on servers.
+	clientCompileOnly('maven.modrinth:iris:oaD6KQls') { transitive = false }
+	clientCompileOnly('maven.modrinth:sodium:2Yom1N68') { transitive = false }
 
 	//modImplementation "carpet:fabric-carpet:${project.minecraft_version}-${project.carpet_core_version}"
 }
@@ -80,9 +91,15 @@ processResources {
 	inputs.property "valveTest", valveTest
 	inputs.property "generatorTest", generatorTest
 	inputs.property "fireTest", fireTest
+	inputs.property 'shaderTest', shaderTest ?: ''
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+		if (shaderTest != null) {
+			filter { line -> line.replace('"mixins": [', '"mixins": [ { "config": "immersivefluids.shadow-test.mixins.json", "environment": "client" },') }
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysicsClient"',
+				'"io.github.SirWashington.WaterPhysicsClient", "io.github.SirWashington.ShaderClientProbe"') }
+		}
         if (valveTest) {
             filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
                     '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterValveServerTest"') }
@@ -146,6 +163,14 @@ tasks.register('iceRenderSelfTest', JavaExec) {
 }
 
 check.dependsOn physicsSelfTest, iceRenderSelfTest
+
+tasks.register('shaderSelfTest', JavaExec) {
+	dependsOn clientTestClasses
+	classpath = sourceSets.clientTest.runtimeClasspath + sourceSets.client.compileClasspath
+	mainClass = 'io.github.SirWashington.ShaderSelfTest'
+	if (providers.gradleProperty('shaderPack').isPresent()) args providers.gradleProperty('shaderPack').get()
+}
+check.dependsOn shaderSelfTest
 
 tasks.register('pumpGeometrySelfTest', JavaExec) {
 	dependsOn clientTestClasses
@@ -272,3 +297,10 @@ if (fireTest) {
         }
     }
 }
+
+tasks.register('machineryMeshSelfTest', JavaExec) {
+    dependsOn clientTestClasses
+    classpath = sourceSets.clientTest.runtimeClasspath
+    mainClass = 'io.github.SirWashington.MachineryMeshSelfTest'
+}
+check.dependsOn machineryMeshSelfTest

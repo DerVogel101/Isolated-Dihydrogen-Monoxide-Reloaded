@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.SirWashington.compat.iris.mixin",
+  "plugin": "io.github.SirWashington.compat.iris.IrisMixinPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["IncludeGraphMixin", "BlockMaterialMappingMixin", "ItemIdMapMixin", "SodiumBlockRendererMixin", "SodiumFluidRendererMixin", "ItemFeatureRendererMixin", "CameraMixin", "MachineryBufferAccess"],
+  "injectors": { "defaultRequire": 1 }
+}

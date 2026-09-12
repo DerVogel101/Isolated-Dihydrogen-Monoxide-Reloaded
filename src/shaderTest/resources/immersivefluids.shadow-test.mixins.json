@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.SirWashington.shadowtest.mixin",
+  "plugin": "io.github.SirWashington.compat.iris.IrisMixinPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["ShadowSubmissionMixin$Pump", "ShadowSubmissionMixin$Valve"],
+  "injectors": { "defaultRequire": 1 }
+}

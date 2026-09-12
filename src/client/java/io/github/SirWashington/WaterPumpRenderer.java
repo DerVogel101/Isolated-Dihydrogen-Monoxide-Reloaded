@@ -24,9 +24,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 
 public final class WaterPumpRenderer implements BlockEntityRenderer<WaterPumpBlockEntity, WaterPumpRenderer.State> {
-    private static final Identifier TEXTURE = Identifier.withDefaultNamespace("textures/block/iron_block.png");
+    private static final Identifier TEXTURE = TextureAtlas.LOCATION_BLOCKS;
     private final ModelPart cube;
 
     public WaterPumpRenderer(BlockEntityRendererProvider.Context context) {
@@ -66,42 +69,12 @@ public final class WaterPumpRenderer implements BlockEntityRenderer<WaterPumpBlo
                 .m10(v.getStepX()).m11(v.getStepY()).m12(v.getStepZ())
                 .m20(w.getStepX()).m21(w.getStepY()).m22(w.getStepZ()));
         poses.translate((state.size - 1) / 2F, (state.size - 1) / 2F, 0);
-        var housing = PumpGeometry.housing(state.size, state.connections);
+        var housing = MachineryMesh.pump(state.size, state.connections);
         int light = state.lightCoords;
-        float size = state.size;
-        float opening = PumpGeometry.openingRadius(state.size);
-        collector.submitCustomGeometry(poses, RenderTypes.entitySolid(TEXTURE), (pose, vertices) -> {
-            for (PumpGeometry.Quad quad : housing) {
-                Vec3 normal = quad.b().subtract(quad.a()).cross(quad.c().subtract(quad.a())).normalize();
-                Vec3[] corners = {quad.a(), quad.b(), quad.c(), quad.d()};
-                boolean barrel = Math.abs(normal.z) < .001 && Math.abs(Math.hypot(quad.a().x, quad.a().y) - opening) < 1E-6;
-                double[] us = new double[4];
-                double[] vs = new double[4];
-                for (int i = 0; i < 4; i++) {
-                    Vec3 point = corners[i];
-                    if (barrel) {
-                        us[i] = (Math.atan2(point.y, point.x) / (Math.PI * 2) + 1) % 1;
-                        vs[i] = point.z + .5;
-                    } else if (Math.abs(normal.z) > .5) {
-                        us[i] = point.x / size + .5; vs[i] = point.y / size + .5;
-                    } else if (Math.abs(normal.x) > .5) {
-                        us[i] = point.z + .5; vs[i] = point.y / size + .5;
-                    } else {
-                        us[i] = point.x / size + .5; vs[i] = point.z + .5;
-                    }
-                }
-                if (barrel && Math.abs(us[0] - us[2]) > .5) {
-                    for (int i = 0; i < 4; i++) if (us[i] < .5) us[i] += 1;
-                }
-                for (int i = 0; i < 4; i++) {
-                    Vec3 point = corners[i];
-                    vertices.addVertex(pose, (float)point.x, (float)point.y, (float)point.z).setColor(quad.color())
-                            .setUv((float)us[i], (float)vs[i])
-                            .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light)
-                            .setNormal(pose, (float)normal.x, (float)normal.y, (float)normal.z);
-                }
-            }
-        });
+        var sprite = Minecraft.getInstance().getAtlasManager().get(
+                new SpriteId(TEXTURE, Identifier.withDefaultNamespace("block/iron_block")));
+        collector.submitCustomGeometry(poses, RenderTypes.entitySolid(TEXTURE),
+                (pose, vertices) -> housing.emit(pose, vertices, sprite, light));
         for (PumpGeometry.Part part : PumpGeometry.parts(state.size, state.connections, state.angle, state.pitch)) {
             poses.pushPose();
             poses.translate(part.x(), part.y(), part.z());
@@ -109,7 +82,7 @@ public final class WaterPumpRenderer implements BlockEntityRenderer<WaterPumpBlo
             poses.mulPose(Axis.XP.rotationDegrees(part.pitch()));
             poses.scale(part.width(), part.height(), part.depth());
             collector.submitModelPart(cube, poses, RenderTypes.entitySolid(TEXTURE), state.lightCoords,
-                    OverlayTexture.NO_OVERLAY, null, part.color(), state.breakProgress);
+                    OverlayTexture.NO_OVERLAY, sprite, part.color(), state.breakProgress);
             poses.popPose();
         }
         poses.popPose();

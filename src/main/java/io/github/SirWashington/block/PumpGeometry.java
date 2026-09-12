@@ -77,12 +77,6 @@ public final class PumpGeometry {
             // One inward-facing barrel wall, with no intersecting ring segments.
             quads.add(new Quad(circle(i, radius, start), circle(i, radius, end),
                     circle(j, radius, end), circle(j, radius, start), FRAME));
-            // Exterior seam strips partition the surface rather than overlaying another box.
-            double[] z = {start, start + .025, end - .025, end};
-            for (int band = 0; band < 3; band++) {
-                quads.add(new Quad(square(i, half, z[band]), square(j, half, z[band]),
-                        square(j, half, z[band + 1]), square(i, half, z[band + 1]), band == 1 ? FRAME : EDGE));
-            }
             for (int side = 0; side < 2; side++) {
                 if ((connections & (1 << side)) != 0) continue; // No coincident caps between connected stages.
                 double faceZ = side == 0 ? start : end;
@@ -90,11 +84,27 @@ public final class PumpGeometry {
                         square(i, half - .025, faceZ), square(i, half, faceZ)};
                 Vec3[] b = {circle(j, radius, faceZ), circle(j, radius + .008, faceZ),
                         square(j, half - .025, faceZ), square(j, half, faceZ)};
-                for (int band = 0; band < 3; band++) {
+                for (int band = 0; band < 2; band++) {
                     int color = band == 1 ? FILL : FRAME;
                     quads.add(side == 1 ? new Quad(a[band], a[band + 1], b[band + 1], b[band], color)
                             : new Quad(b[band], b[band + 1], a[band + 1], a[band], color));
                 }
+            }
+        }
+        // Flat strips need one quad per square side, not one per circular segment.
+        double[] z = {start, start + .025, end - .025, end};
+        for (int i = SIDES / 8; i < SIDES; i += SIDES / 4) {
+            int j = i + SIDES / 4;
+            for (int band = 0; band < 3; band++) {
+                quads.add(new Quad(square(i, half, z[band]), square(j, half, z[band]),
+                        square(j, half, z[band + 1]), square(i, half, z[band + 1]), band == 1 ? FRAME : EDGE));
+            }
+            for (int side = 0; side < 2; side++) {
+                if ((connections & (1 << side)) != 0) continue;
+                double faceZ = side == 0 ? start : end;
+                Vec3 a = square(i, half - .025, faceZ), b = square(i, half, faceZ);
+                Vec3 c = square(j, half, faceZ), d = square(j, half - .025, faceZ);
+                quads.add(side == 1 ? new Quad(a, b, c, d, FRAME) : new Quad(d, c, b, a, FRAME));
             }
         }
         return List.copyOf(quads);
