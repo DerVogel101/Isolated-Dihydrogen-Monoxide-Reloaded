@@ -92,13 +92,15 @@ public final class FiniteWaterloggedPlants {
     }
 
     private static boolean isExcluded(Block block) {
-        String id = block.getDescriptionId();
         return block instanceof BarrierBlock
                 || block instanceof BeaconBlock
                 || block instanceof LeavesBlock
                 || block instanceof ShulkerBoxBlock
                 || block instanceof WallBlock
-                || id.endsWith("glass_pane");
+                || block instanceof StainedGlassPaneBlock
+                // Runs during Block construction: never call a modded description override.
+                // Vanilla clear panes and iron bars share this exact class.
+                || (block.getClass() == IronBarsBlock.class && block.getDescriptionId().endsWith("glass_pane"));
     }
 
     public static boolean canHoldFiniteWater(BlockState state) {
