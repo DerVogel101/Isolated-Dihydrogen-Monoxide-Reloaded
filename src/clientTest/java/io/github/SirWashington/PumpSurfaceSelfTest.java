@@ -19,7 +19,7 @@ final class PumpSurfaceSelfTest {
                 expect(Math.abs(a-b)<1E-7,"Surface area/color changed");
             }
             // Atlas UVs on all planar surfaces must still implement the original affine projection.
-            for(var p:MachineryMesh.pump(size,connections).vertices()) {
+            for(var p:MachineryMesh.buildPumpHousing(size,connections).vertices()) {
                 if(Math.abs(p.nz())>.5) {
                     expect(Math.abs(p.u()-(p.x()/size+.5))<1E-6 && Math.abs(p.v()-(p.y()/size+.5))<1E-6,"Cap UV mapping");
                 } else if(Math.abs(Math.abs(p.x())-size/2.0)<1E-6 && Math.abs(p.nx())>.5) {

@@ -22,7 +22,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public final class WaterValveBlockEntity extends BlockEntity {
+public final class WaterValveBlockEntity extends BlockEntity implements net.fabricmc.fabric.api.blockgetter.v2.RenderDataBlockEntity {
     public static final BlockEntityType<WaterValveBlockEntity> TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "water_valve"),
             FabricBlockEntityTypeBuilder.create(WaterValveBlockEntity::new, ModBlocks.WATER_VALVE).build());
@@ -40,6 +40,7 @@ public final class WaterValveBlockEntity extends BlockEntity {
     public int column() { return column; }
     public int row() { return row; }
     public boolean isController() { return column == 0 && row == 0; }
+    @Override public MachineryRenderData getRenderData() { return new MachineryRenderData(size, column, row, 0); }
 
     public double progress(float partialTick) {
         double elapsed = level == null ? 0 : Math.max(0, level.getGameTime() - startedAt + partialTick);
@@ -145,6 +146,7 @@ public final class WaterValveBlockEntity extends BlockEntity {
     }
     @Override
     protected void loadAdditional(ValueInput input) {
+        var previous = getRenderData();
         super.loadAdditional(input);
         size = Math.clamp(input.getIntOr("Size", 1), 1, 3);
         column = Math.clamp(input.getIntOr("Column", 0), 0, size - 1);
@@ -152,6 +154,8 @@ public final class WaterValveBlockEntity extends BlockEntity {
         startProgress = Math.clamp(input.getIntOr("Progress", ValveGeometry.DURATION), 0, ValveGeometry.DURATION);
         startedAt = input.getLongOr("StartedAt", 0);
         collision = null;
+        if (level != null && level.isClientSide() && !previous.equals(getRenderData()))
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }

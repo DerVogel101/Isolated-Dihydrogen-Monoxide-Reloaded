@@ -24,7 +24,7 @@ final class MachineryMesh {
     }
     private static final class Valves {
         static final List<MachineryMesh> MESHES = java.util.stream.IntStream.range(0, 6)
-                .mapToObj(i -> buildValve(i / 2 + 1, i % 2 * ValveGeometry.DURATION)).toList();
+                .mapToObj(i -> buildMovingValve(i / 2 + 1, i % 2 * ValveGeometry.DURATION)).toList();
     }
     static MachineryMesh pump(int size, int connections) { return Pumps.MESHES.get((size - 1) * 4 + connections); }
     static final class ValveCache {
@@ -35,7 +35,7 @@ final class MachineryMesh {
             if (mesh == null || this.size != size || this.progress != progress) {
                 mesh = progress == 0 || progress == ValveGeometry.DURATION
                         ? Valves.MESHES.get((size - 1) * 2 + (progress == 0 ? 0 : 1))
-                        : buildValve(size, progress);
+                        : buildMovingValve(size, progress);
                 this.size = size;
                 this.progress = progress;
             }
@@ -62,7 +62,7 @@ final class MachineryMesh {
                     .setNormal(pose, p.nx, p.ny, p.nz);
         }
     }
-    static MachineryMesh buildPump(int size, int connections) {
+    static MachineryMesh buildPumpHousing(int size, int connections) {
         var result = new ArrayList<Vertex>();
         var housing = PumpGeometry.housing(size, connections);
         float opening = PumpGeometry.openingRadius(size);
@@ -99,11 +99,39 @@ final class MachineryMesh {
         }
         return new MachineryMesh(result);
     }
+    static MachineryMesh buildPump(int size, int connections) {
+        var result = new ArrayList<>(buildPumpHousing(size, connections).vertices());
+        for (var part : PumpGeometry.parts(size, connections, 0, 0)) {
+            if (!part.solid()) continue;
+            var box = new ValveGeometry.Part(0, 0, 0, part.width(), part.height(), part.depth(),
+                    0, part.color(), true);
+            var mesh = buildValveParts(List.of(box), List.of(box));
+            double angle = Math.toRadians(part.roll()), c = Math.cos(angle), s = Math.sin(angle);
+            for (var p : mesh.vertices()) result.add(new Vertex(
+                    part.x() + (float)(c * p.x() - s * p.y()),
+                    part.y() + (float)(s * p.x() + c * p.y()), part.z() + p.z(), p.u(), p.v(),
+                    (float)(c * p.nx() - s * p.ny()), (float)(s * p.nx() + c * p.ny()), p.nz(), p.color()));
+        }
+        return new MachineryMesh(result);
+    }
     static MachineryMesh buildValve(int size, double progress) {
-        var result = new ArrayList<Vertex>();
         var parts = ValveGeometry.parts(size, progress);
+        return buildValveParts(parts, parts);
+    }
+    static MachineryMesh buildValveFrame(int size) {
+        var parts = ValveGeometry.frameParts(size);
+        return buildValveParts(parts, parts);
+    }
+    static MachineryMesh buildMovingValve(int size, double progress) {
+        var all = ValveGeometry.parts(size, progress);
+        var moving = new ArrayList<>(all);
+        moving.removeAll(ValveGeometry.frameParts(size));
+        return buildValveParts(moving, all);
+    }
+    private static MachineryMesh buildValveParts(List<ValveGeometry.Part> parts, List<ValveGeometry.Part> occluders) {
+        var result = new ArrayList<Vertex>();
         for (ValveGeometry.Part p : parts) {
-            int hidden = hiddenValveFaces(p, parts);
+            int hidden = hiddenValveFaces(p, occluders);
             if (hidden == 63) continue;
             var poses = new PoseStack();
             poses.translate(p.x(), p.y(), p.z());

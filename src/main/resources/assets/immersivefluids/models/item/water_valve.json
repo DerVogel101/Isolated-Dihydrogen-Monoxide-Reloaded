@@ -581,7 +581,7 @@
   "textures": {
     "bolt": "minecraft:block/copper_block",
     "particle": "#frame",
-    "frame": "minecraft:block/iron_block",
+    "frame": "immersivefluids:block/machinery_iron",
     "door": "minecraft:block/smooth_stone"
   }
 }

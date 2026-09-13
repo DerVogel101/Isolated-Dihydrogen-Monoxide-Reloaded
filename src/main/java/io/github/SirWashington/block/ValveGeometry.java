@@ -13,7 +13,7 @@ public final class ValveGeometry {
     public static final int SEALED_AT = 120;
     public record Part(double x, double y, double z, double width, double height, double depth,
                        double yaw, int color, boolean solid) { }
-    private static final int FRAME = 0xFF586771, PANEL = 0xFFC2CDD0, SLIDE = 0xFF8D9CA3, COPPER = 0xFFCF9064;
+    private static final int FRAME = 0xFF586771, PANEL = 0xFFC2CDD0, COPPER = 0xFFCF9064;
 
     private ValveGeometry() { }
     /** Direction-aware stages: hinge, telescoping panels, bolts; zero means travel completed. */
@@ -27,7 +27,7 @@ public final class ValveGeometry {
         return t * t * (3 - 2 * t);
     }
 
-    public static List<Part> parts(int size, double ticks) {
+    public static List<Part> frameParts(int size) {
         var parts = new ArrayList<Part>();
         double half = size / 2.0, rim = .04, span = half - rim;
         // Partition the frame at the corners to avoid coplanar exterior faces.
@@ -35,6 +35,18 @@ public final class ValveGeometry {
             parts.add(new Part(0, side * (half - rim / 2), 0, size, rim, 1, 0, FRAME, true));
             parts.add(new Part(side * (half - rim / 2), 0, 0, rim, size - rim * 2, 1, 0, FRAME, true));
         }
+        double thickness = size == 1 ? .075 : .14;
+        for (int side : new int[]{-1, 1}) for (int face : new int[]{-1, 1}) for (int edge : new int[]{-1, 1}) {
+            double z = face * (thickness / 2 + .019);
+            parts.add(new Part(side * .10, edge * (span + rim / 2), .38 + z,
+                    .075, rim - .002, .032, 0, COPPER, false));
+        }
+        return List.copyOf(parts);
+    }
+
+    public static List<Part> parts(int size, double ticks) {
+        var parts = new ArrayList<>(frameParts(size));
+        double half = size / 2.0, rim = .04, span = half - rim;
         double swing = phase(ticks, 0, 60), extension = phase(ticks, 60, 60), lock = phase(ticks, 120, 20);
         int panels = size == 1 ? 2 : 3;
         double thickness = size == 1 ? .075 : .14;
@@ -48,7 +60,7 @@ public final class ValveGeometry {
                 double depth = thickness - panel * .018;
                 // Recess nested end caps so retracted plates do not share a visible face.
                 leaf(parts, pivot, angle, -side * along, 0, 0, section - panel * .004, size - rim * 2, depth,
-                        panel == 0 ? PANEL : SLIDE, true);
+                        PANEL, true);
                 // Raised reinforcing ribs and rivets on both faces; the thinner panels nest inside the outer one.
                 for (int face : new int[]{-1, 1}) {
                     for (int band : new int[]{-1, 1}) {
@@ -79,9 +91,6 @@ public final class ValveGeometry {
                     leaf(parts, pivot, angle, shaftX, shaftY, z, .034, length, .025, COPPER, false);
                     leaf(parts, pivot, angle, shaftX, edge * (span - .075 - length / 2), z,
                             .09, baseHeight, .038, FRAME, false);
-                    // Socket stays fixed on the frame while its door swings into the side pocket.
-                    parts.add(new Part(side * .10, edge * (span + rim / 2), .38 + z,
-                            .075, rim - .002, .032, 0, COPPER, false));
                 }
             }
         }

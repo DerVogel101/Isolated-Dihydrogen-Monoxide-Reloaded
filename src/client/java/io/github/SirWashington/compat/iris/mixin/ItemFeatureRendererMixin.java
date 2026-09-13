@@ -20,7 +20,7 @@ public abstract class ItemFeatureRendererMixin {
                                          QuadInstance instance, Operation<Void> original) {
         var state = CapturedRenderingState.INSTANCE;
         int previous = state.getCurrentRenderedItem();
-        if (previous == IrisMaterials.ITEM && IrisMaterials.active()) {
+        if (IrisMaterials.supported && previous == IrisMaterials.ITEM && IrisMaterials.active()) {
             IrisMaterials.withItemMaterial(IrisMaterials.itemSurface(quad.materialInfo().sprite()),
                     () -> original.call(vertices, pose, quad, instance));
         } else {

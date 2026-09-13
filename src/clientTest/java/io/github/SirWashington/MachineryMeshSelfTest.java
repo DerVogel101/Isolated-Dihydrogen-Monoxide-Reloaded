@@ -2,6 +2,9 @@ package io.github.SirWashington;
 
 import io.github.SirWashington.block.PumpGeometry;
 import io.github.SirWashington.block.ValveGeometry;
+import io.github.SirWashington.block.MachineryRenderData;
+import net.minecraft.core.Direction;
+import java.util.List;
 import java.lang.management.ManagementFactory;
 import java.util.function.Supplier;
 
@@ -16,18 +19,26 @@ public final class MachineryMeshSelfTest {
                 expect(mesh == MachineryMesh.pump(size, connection), "Pump cache reuse");
                 expect(mesh.vertices().equals(MachineryMesh.buildPump(size, connection).vertices()), "Pump cache key");
                 double sourceArea = 0;
+                var stationary = PumpGeometry.parts(size, connection, 0, 0).stream().filter(PumpGeometry.Part::solid).toList();
+                expect(stationary.size() == (size == 3 ? 9 : 5), "All motor supports and motor body are stationary");
+                expect(stationary.equals(PumpGeometry.parts(size, connection, 73, .6F).stream()
+                        .filter(PumpGeometry.Part::solid).toList()), "Chunk-baked pump parts never animate");
                 for (var q : PumpGeometry.housing(size, connection)) {
                     sourceArea += q.b().subtract(q.a()).cross(q.c().subtract(q.a())).length() / 2;
                     sourceArea += q.c().subtract(q.a()).cross(q.d().subtract(q.a())).length() / 2;
                 }
-                expect(Math.abs(validate(mesh) - sourceArea) < 1E-4, "Pump preserves surface area");
+                for (var p : PumpGeometry.parts(size, connection, 0, 0)) if (p.solid())
+                    sourceArea += 2 * (p.width()*p.height() + p.width()*p.depth() + p.height()*p.depth());
+                expect(Math.abs(validate(mesh) - sourceArea) < 1E-4, "Pump preserves housing, support and motor surface area");
+                verifySlices(mesh, size, connection);
                 if (connection > 0) expect(mesh != MachineryMesh.pump(size, connection - 1), "Connection changes mesh");
             }
             var cache = new MachineryMesh.ValveCache();
+            verifySlices(MachineryMesh.buildValveFrame(size), size, 0);
             for (double progress : new double[]{0, .125, 30, 59.875, 60, 60.125, 90.5, 119.875, 120, 120.125, 139.875, 140}) {
                 var mesh = cache.get(size, progress);
                 expect(mesh == cache.get(size, progress), "Valve cache reuse");
-                expect(mesh.vertices().equals(MachineryMesh.buildValve(size, progress).vertices()), "Valve progress key");
+                expect(mesh.vertices().equals(MachineryMesh.buildMovingValve(size, progress).vertices()), "Valve progress key");
                 double sourceArea = 0;
                 for (var p : ValveGeometry.parts(size, progress))
                     sourceArea += 2 * (p.width()*p.height() + p.width()*p.depth() + p.height()*p.depth());
@@ -47,8 +58,32 @@ public final class MachineryMeshSelfTest {
         System.out.println("MACHINERY_MESH_SELF_TEST_PASS");
     }
     private static double validate(MachineryMesh mesh) {
-        var vertices = mesh.vertices();
-        expect(!vertices.isEmpty() && vertices.size() % 4 == 0, "Complete quads");
+        expect(!mesh.vertices().isEmpty(), "Nonempty geometry");
+        return validate(mesh.vertices());
+    }
+    private static void verifySlices(MachineryMesh mesh, int size, int connections) {
+        double originalArea = validate(mesh);
+        for (var facing : Direction.values()) {
+            double area = 0;
+            for (int column = 0; column < size; column++) for (int row = 0; row < size; row++) {
+                var slice = MachineryFrameModel.slice(mesh.vertices(), new MachineryRenderData(size, column, row, connections), facing);
+                area += validate(slice);
+                for (int i = 0; i < slice.size(); i += 4) {
+                    var a = slice.get(i); var b = slice.get(i + 1); var c = slice.get(i + 2);
+                    double ux = b.x()-a.x(), uy=b.y()-a.y(), uz=b.z()-a.z();
+                    double vx = c.x()-a.x(), vy=c.y()-a.y(), vz=c.z()-a.z();
+                    double nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+                    expect(nx*nx+ny*ny+nz*nz > 1E-16, "Clipping preserves a nondegenerate first triangle for shader tangents");
+                }
+                for (var p : slice) expect(p.x() >= -1E-5 && p.x() <= 1.00001F
+                        && p.y() >= -1E-5 && p.y() <= 1.00001F && p.z() >= -1E-5 && p.z() <= 1.00001F,
+                        "Frame geometry stays in its owning block");
+            }
+            expect(Math.abs(area - originalArea) < 3E-4, "Chunk partitions preserve area without duplicated boundary faces");
+        }
+    }
+    private static double validate(List<MachineryMesh.Vertex> vertices) {
+        expect(vertices.size() % 4 == 0, "Complete quads");
         double area = 0;
         for (var p : vertices) {
             expect(Float.isFinite(p.x()+p.y()+p.z()), "Finite positions");

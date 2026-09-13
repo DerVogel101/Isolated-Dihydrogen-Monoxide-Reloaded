@@ -52,7 +52,11 @@ loom {
 		client {
 			ideConfigGenerated false
 			if (shaderTest != null) runDir "build/shader-test-client/${shaderTest}"
-			if (shaderTest in ['complementary', 'euphoria']) vmArg '-Dimmersivefluids.shaderProbePack=true'
+			if (shaderTest != null && !(shaderTest in ['vanilla', 'sodium', 'iris'])) vmArg '-Dimmersivefluids.shaderProbePack=true'
+			if (shaderTest != null && (shaderTest.startsWith('complementary') || shaderTest.startsWith('euphoria')))
+				vmArg '-Dimmersivefluids.shaderProbeIntegrated=true'
+			if (shaderTest in ['bsl', 'bliss']) vmArg '-Dimmersivefluids.shaderProbeLabPbr=true'
+			if (shaderTest == 'complementary-static') vmArg '-Dimmersivefluids.shaderProbeNoEntityShadows=true'
 		}
 	}
 

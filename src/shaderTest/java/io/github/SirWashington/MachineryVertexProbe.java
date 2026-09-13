@@ -17,16 +17,21 @@ final class MachineryVertexProbe {
         int[] submissions = {0};
         var sprite = net.minecraft.client.Minecraft.getInstance().getAtlasManager().get(
                 new net.minecraft.client.resources.model.sprite.SpriteId(net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
-                        net.minecraft.resources.Identifier.withDefaultNamespace("block/iron_block")));
+                        net.minecraft.resources.Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "block/machinery_iron")));
         try {
             MachineryBulkProbe.run();
             var collector = (SubmitNodeCollector) Proxy.newProxyInstance(SubmitNodeCollector.class.getClassLoader(),
                     new Class<?>[]{SubmitNodeCollector.class}, (proxy, method, args) -> {
-                        if (method.getName().equals("submitCustomGeometry")) {
+                        if (method.getName().equals("submitCustomGeometry") || method.getName().equals("submitModelPart")) {
                             submissions[0]++;
                             try (var arena = new ByteBufferBuilder(65536)) {
                                 var builder = new BufferBuilder(arena, PrimitiveTopology.QUADS, DefaultVertexFormat.ENTITY);
-                                ((SubmitNodeCollector.CustomGeometryRenderer)args[2]).render(((PoseStack)args[0]).last(), builder);
+                                if (method.getName().equals("submitCustomGeometry"))
+                                    ((SubmitNodeCollector.CustomGeometryRenderer)args[2]).render(((PoseStack)args[0]).last(), builder);
+                                else
+                                    ((net.minecraft.client.model.geom.ModelPart)args[0]).render((PoseStack)args[1],
+                                            ((net.minecraft.client.renderer.texture.TextureAtlasSprite)args[5]).wrap(builder),
+                                            (int)args[3], (int)args[4], (int)args[6]);
                                 try (var mesh = builder.buildOrThrow()) {
                                     var format = mesh.drawState().format();
                                     int normal = IrisVertexFormats.getOffset(format, "Normal");
@@ -53,6 +58,7 @@ final class MachineryVertexProbe {
                     var pump = new WaterPumpRenderer.State();
                     pump.controller=true; pump.size=size; pump.connections=connections;
                     pump.facing=facing; pump.lightCoords=15728880;
+                    pump.angle = 15 + connections * 90; pump.pitch = size * 10;
                     new WaterPumpRenderer(null).submit(pump, new PoseStack(), collector, null);
                 }
                 var valve = new WaterValveRenderer.State();

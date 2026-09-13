@@ -23,7 +23,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public final class WaterPumpBlockEntity extends BlockEntity {
+public final class WaterPumpBlockEntity extends BlockEntity implements net.fabricmc.fabric.api.blockgetter.v2.RenderDataBlockEntity {
     private static final int RUN_SOUND_DELAY = 20;
     private static final int RUN_SOUND_INTERVAL = 20;
     public static final BlockEntityType<WaterPumpBlockEntity> TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
@@ -41,6 +41,7 @@ public final class WaterPumpBlockEntity extends BlockEntity {
     public int row() { return row; }
     public int connections() { return connections; }
     public boolean isController() { return column == 0 && row == 0; }
+    @Override public MachineryRenderData getRenderData() { return new MachineryRenderData(size, column, row, connections); }
 
     public VoxelShape collisionShape() {
         if (collision == null) collision = PumpGeometry.collision(size, column, row, getBlockState().getValue(WaterPumpBlock.FACING));
@@ -130,12 +131,15 @@ public final class WaterPumpBlockEntity extends BlockEntity {
 
     @Override
     protected void loadAdditional(ValueInput input) {
+        var previous = getRenderData();
         super.loadAdditional(input);
         size = Math.clamp(input.getIntOr("Size", 1), 1, 3);
         column = Math.clamp(input.getIntOr("Column", 0), 0, size - 1);
         row = Math.clamp(input.getIntOr("Row", 0), 0, size - 1);
         connections = input.getIntOr("Connections", 0) & 3;
         collision = null;
+        if (level != null && level.isClientSide() && !previous.equals(getRenderData()))
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
 
     @Override

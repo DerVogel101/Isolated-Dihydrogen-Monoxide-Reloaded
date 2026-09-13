@@ -31,7 +31,7 @@ public abstract class IncludeGraphMixin {
         var replacements = ShaderSourcePatch.replacements(sources);
         if (replacements.isEmpty()) {
             if (sources.containsKey(ShaderSourcePatch.BE)) LoggerFactory.getLogger("immersivefluids").warn(
-                    "Unrecognized Complementary/Euphoria material sources; Immersive Fluids shader integration disabled.");
+                    "Unrecognized Complementary/Euphoria material sources; integrated machinery/item materials disabled. General water/ice support remains enabled.");
             return;
         }
         // Reject reserved dispatch IDs in any property include, before modifying any source.
@@ -41,12 +41,12 @@ public abstract class IncludeGraphMixin {
                 if (text.contains(Integer.toString(IrisMaterials.MACHINERY))
                         || text.contains(Integer.toString(IrisMaterials.ITEM))
                         || text.contains(Integer.toString(IrisMaterials.ICE_ITEM))) {
-                    LoggerFactory.getLogger("immersivefluids").warn("Shader dispatch ID collision; integration disabled.");
+                    LoggerFactory.getLogger("immersivefluids").warn("Shader dispatch ID collision; integrated material adapter disabled.");
                     return;
                 }
             }
         } catch (IOException e) {
-            LoggerFactory.getLogger("immersivefluids").warn("Could not validate shader material IDs; integration disabled.", e);
+            LoggerFactory.getLogger("immersivefluids").warn("Could not validate shader material IDs; integrated material adapter disabled.", e);
             return;
         }
         var patched = new HashMap<>(nodes);

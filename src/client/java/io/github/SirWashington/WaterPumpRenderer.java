@@ -69,13 +69,10 @@ public final class WaterPumpRenderer implements BlockEntityRenderer<WaterPumpBlo
                 .m10(v.getStepX()).m11(v.getStepY()).m12(v.getStepZ())
                 .m20(w.getStepX()).m21(w.getStepY()).m22(w.getStepZ()));
         poses.translate((state.size - 1) / 2F, (state.size - 1) / 2F, 0);
-        var housing = MachineryMesh.pump(state.size, state.connections);
-        int light = state.lightCoords;
         var sprite = Minecraft.getInstance().getAtlasManager().get(
-                new SpriteId(TEXTURE, Identifier.withDefaultNamespace("block/iron_block")));
-        collector.submitCustomGeometry(poses, RenderTypes.entitySolid(TEXTURE),
-                (pose, vertices) -> housing.emit(pose, vertices, sprite, light));
+                new SpriteId(TEXTURE, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "block/machinery_iron")));
         for (PumpGeometry.Part part : PumpGeometry.parts(state.size, state.connections, state.angle, state.pitch)) {
+            if (part.solid()) continue; // Stationary supports and motor are baked into the chunk mesh.
             poses.pushPose();
             poses.translate(part.x(), part.y(), part.z());
             poses.mulPose(Axis.ZP.rotationDegrees(part.roll()));

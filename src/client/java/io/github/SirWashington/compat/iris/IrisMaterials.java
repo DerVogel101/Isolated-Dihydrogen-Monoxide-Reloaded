@@ -15,16 +15,18 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class IrisMaterials {
     // Private dispatch markers, NOT shader material IDs. Source validation checks for collisions.
     public static final int MACHINERY = 29990, ITEM = 29991, ICE_ITEM = 29992;
+    /** The integrated-material adapter only; general water/ice support does not depend on it. */
     public static volatile boolean supported;
     private IrisMaterials() { }
 
-    public static boolean active() { return supported && IrisApi.getInstance().isShaderPackInUse(); }
+    public static boolean active() { return IrisApi.getInstance().isShaderPackInUse(); }
 
     public static void mapBlocks(Object2IntMap<BlockState> ids) {
-        if (!supported) return;
         alias(ids, ModBlocks.FINITE_WATER, Blocks.WATER);
         alias(ids, ModBlocks.FINITE_ICE, Blocks.ICE);
         alias(ids, ModBlocks.LAYERED_FINITE_ICE, Blocks.ICE);
+        // Private dispatch IDs require our integrated-material shader branches.
+        if (!supported) return;
         for (Block block : new Block[]{ModBlocks.WATER_PUMP, ModBlocks.MUTED_WATER_PUMP, ModBlocks.WATER_VALVE})
             for (BlockState state : block.getStateDefinition().getPossibleStates())
                 if (!ids.containsKey(state)) ids.put(state, MACHINERY);
@@ -43,6 +45,9 @@ public final class IrisMaterials {
         boolean ice = FrozenWaterloggedBlocks.isFrozen(state)
                 && sprite.contents().name().equals(Identifier.withDefaultNamespace("block/ice"));
         if (!own && !ice) return original;
+        if (supported && original == MACHINERY && sprite != null
+                && sprite.contents().name().equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/machinery_iron")))
+            return MACHINERY;
         // Explicit shader support for a mod block takes precedence over our fallback.
         var ids = WorldRenderingSettings.INSTANCE.getBlockStateIds();
         if (own && ids != null && ids.containsKey(state) && original != MACHINERY
@@ -54,6 +59,8 @@ public final class IrisMaterials {
         var ids = WorldRenderingSettings.INSTANCE.getBlockStateIds();
         if (ids == null || sprite == null) return fallback;
         Identifier texture = sprite.contents().name();
+        if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/machinery_iron")))
+            return ids.getOrDefault(Blocks.IRON_BLOCK.defaultBlockState(), fallback);
         if (!texture.getNamespace().equals("minecraft") || !texture.getPath().startsWith("block/")) return fallback;
         String name = texture.getPath().substring(6);
         name = switch (name) {

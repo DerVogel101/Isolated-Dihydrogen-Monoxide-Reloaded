@@ -48,7 +48,7 @@ public final class WaterValveRenderer implements BlockEntityRenderer<WaterValveB
                 .m20(w.getStepX()).m21(w.getStepY()).m22(w.getStepZ()));
         poses.translate((state.size - 1) / 2F, (state.size - 1) / 2F, 0);
         var sprite = Minecraft.getInstance().getAtlasManager().get(
-                new SpriteId(TEXTURE, Identifier.withDefaultNamespace("block/iron_block")));
+                new SpriteId(TEXTURE, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "block/machinery_iron")));
         var mesh = state.meshCache.get(state.size, state.progress);
         int light = state.lightCoords;
         collector.submitCustomGeometry(poses, RenderTypes.entitySolid(TEXTURE),

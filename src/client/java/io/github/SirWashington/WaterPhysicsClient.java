@@ -15,6 +15,7 @@ public class WaterPhysicsClient implements ClientModInitializer {
                 io.github.SirWashington.block.WaterPumpBlockEntity.TYPE, WaterPumpRenderer::new);
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(
                 io.github.SirWashington.block.WaterValveBlockEntity.TYPE, WaterValveRenderer::new);
+        MachineryFrameModel.initialize();
         FrozenWaterloggedModel.initialize();
         FluidRenderingRegistry.register(
                 ModFluids.FINITE_WATER,

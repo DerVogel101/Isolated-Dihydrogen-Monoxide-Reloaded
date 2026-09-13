@@ -3,10 +3,13 @@
 ## Setup
 
 - Minecraft 26.2, Iris 1.11.2, Sodium 0.9.1.
-- Complementary Unbound r5.9; optionally Euphoria Patches 1.10.0 for that version.
+- General water/ice recognition is independent of the shader pack. Complementary/Euphoria's integrated
+  material adapter detects its source interface, without a release-number or whole-file hash allowlist.
 - Shader settings: **RP Support → Integrated PBR+** (`RP_MODE=1`).
-- To cast pump/valve shadows, set **Entity Shadows → Full** (`ENTITY_SHADOW=2`). Complementary's
-  Off and Regular Entities settings disable block-entity shadows, including vanilla chests and machinery.
+- Static pump housings, motor bodies and supports, valve frames and fixed sockets render as chunk geometry and cast terrain shadows.
+  For shadows from rotors and moving valve parts, set **Entity Shadows → Full** (`ENTITY_SHADOW=2`).
+- For LabPBR machinery materials in BSL, enable Advanced Materials with the LabPBR material format.
+  In Bliss, enable Specular Reflections; reflection quality and rough-reflection options remain pack settings.
 - Install only the mod plus the shader stack. No external PBR resource pack or edited shader archive is required.
 
 Iris is optional and is never bundled. Shader integration is client-only. Dedicated servers, vanilla
@@ -18,25 +21,33 @@ remain unchanged; finite water is not added to vanilla's water tag.
 Finite water and finite ice inherit the active shader's corresponding vanilla material IDs. Frozen
 waterlogged ice quads keep their own ice material, independently of the original host. Sodium's fluid
 renderer clips finite water above ice/snow, matching the vanilla rendering hook. Camera water recognition
-is restricted to rendering with the supported shader pipeline.
+works with any active shader pipeline, independently of the integrated-material adapter.
 
 Terrain and item quads select materials from their existing vanilla sprites. This preserves iron/copper
 sensor surfaces, the assembler's metal/crystal/concrete surfaces, and wool/honeycomb insulation materials.
 Buckets inherit the shader's bucket item mapping. Explicit shader mappings for mod content take precedence.
 
-Animated pumps and valves use atlas-backed iron textures. Repeating housing UVs are split at atlas tile
+Static machinery is partitioned across every constituent block, including chunk boundaries. Fabric captures
+immutable structure render data for chunk workers; structure changes rebuild meshes, animation does not.
+Rotors and moving valve parts retain the block-entity renderer. Geometry tests check all sizes, orientations,
+connections, UV bounds, normals, winding, and surface-area conservation across the partition.
+
+Machinery uses a mod-owned atlas-backed iron texture with LabPBR normal/specular companions. These encode
+flat tangent-space normals, iron reflectance, bounded smoothness, and no emission. The same material is
+used by machine item frames. Other existing vanilla-textured item surfaces can use the player's resource
+pack materials. No global vanilla texture or shader archive is overwritten. Repeating housing UVs are split at atlas tile
 boundaries. Iris carries block-entity material identity with its deferred submissions. The mod adds an iron
-dispatch branch to the shader's block-entity material handler and an ice response to its item handler.
+dispatch branch to the shader's terrain and block-entity material handlers and an ice response to its item handler.
 Machinery gloss is calculated from the iron texture before applying vertex colors, so dark housings
 retain the iron response alongside pale blades. Valve UVs are converted directly into the iron sprite;
 fluent vertex calls must not bypass Minecraft's sprite wrapper.
-Both edits happen in Iris's in-memory include graph before preprocessing; no shader files are changed.
+All edits happen in Iris's in-memory include graph before preprocessing; no shader files are changed.
 Ordinary shadow geometry is retained; no fake light sources are added.
 
-Compatibility uses separate source signatures for Complementary r5.9 and Euphoria 1.10.0. All source
-checks and reserved dispatch-ID collision checks must succeed before either source edit is applied.
+Integrated material compatibility checks the required shader variables and insertion points. All source
+checks and reserved dispatch-ID collision checks must succeed before any source edit is applied.
 The private dispatch IDs (29990–29992) are not hardcoded vanilla shader material IDs. Actual material
-IDs come from the currently loaded pack. Unsupported revisions fall back to ordinary rendering with a
+IDs come from the currently loaded pack. Unsupported interfaces disable only the integrated adapter with a
 diagnostic. Shader/resource reloads recreate material maps and atlas lookups; no sprite coordinates are cached.
 
 ## Automated checks
@@ -62,6 +73,27 @@ Nested and exceptional item emissions verify material-context restoration. Its e
 is excluded from normal builds. Success markers are `SHADER_CLIENT_STARTUP_PASS`,
 `SHADER_MATERIAL_REGISTRY_PASS` (Iris profiles), `SHADER_ACTIVE_SURFACES_PASS` (active shaders),
 and `SHADER_CLIENT_WORLD_RENDER_PASS`.
+
+## Rendering overhaul checks — 2026-09-13
+
+The current implementation passed isolated client startup/world rendering with no Iris/Sodium,
+Complementary r5.9, Complementary r5.9.1, Euphoria 1.10.1 on r5.9.1, BSL 10.1.5 and Bliss 2.1.2.
+Active shader runs exercised shader toggles and resource reloads. BSL/Bliss explicitly verified that
+Iris loaded the machinery normal and specular sprites rather than fallback textures. The newer
+Complementary/Euphoria runs also checked camera immersion and synchronized 3x3-to-2x2 frame changes
+across a chunk boundary. The no-Iris client passed the same frame snapshot/model checks.
+An additional r5.9.1 run with `ENTITY_SHADOW=1` confirmed zero block-entity shadow submissions;
+its screenshot retains the static frame shadows. Moving parts still need Full entity shadows.
+Dedicated-server regressions passed with `WATER_PUMP_SERVER_TEST_PASS` and
+`WATER_VALVE_SERVER_TEST_PASS`, covering the shared structure and geometry changes without Iris.
+
+`machineryMeshSelfTest` checks partition area, bounds, UVs, normals and nondegenerate tangent inputs
+for all machine sizes and directions. `shaderSelfTest` validates the LabPBR texture channels; with a
+shader fixture it also validates interface detection, insertion, rejection and reload recovery.
+The source fixture checks cover r5.9, r5.9.1 and Euphoria 1.10.1 without version signatures.
+
+These checks do not replace manual acceptance of animation, lighting and material appearance in
+the user's full modpack. The measurements and checks below describe the previous rendering implementation.
 
 ## Recorded runtime checks — 2026-09-10
 
@@ -332,3 +364,10 @@ same-camera Spark comparison in the user's machinery-heavy scene remain manual c
 
 Final check build passed after removing benchmark instrumentation. Release JAR inspection passed:
 VALVE_RELEASE_JAR_PASS (no test entrypoints/classes or bundled optional Sodium/Iris dependencies).
+
+### September 13 visual-feedback corrections
+
+- Pump support struts and the fixed motor body now join the housing in chunk rendering; only the rotating hub and blades remain in the block-entity renderer.
+- Integrated machinery terrain keeps its private material dispatch and evaluates iron gloss before vertex tint, matching the animated material path. Vanilla iron and explicit pack mappings remain unchanged.
+- Telescoping valve panels share the same base color.
+- Evidence: build/rendering-feedback-client.log (Complementary r5.9.1 world, reload, materials and frame checks); build/rendering-feedback-static-client.log (block-entity shadows disabled, frame resize and world checks). Final appearance in the modpack still needs user confirmation.

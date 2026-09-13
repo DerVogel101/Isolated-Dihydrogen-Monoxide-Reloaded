@@ -58,6 +58,7 @@ public final class ShaderClientProbe implements ClientModInitializer {
                     var level = server.overworld();
                     var player = server.getPlayerList().getPlayers().getFirst();
                     BlockPos center = player.blockPosition().offset(0, -1, 0);
+                    ShaderFrameProbe.populate(level, center);
                     var blocks = new net.minecraft.world.level.block.Block[]{ModBlocks.WATER_PUMP, ModBlocks.WATER_VALVE,
                             ModBlocks.DIHYDROGEN_MONOXIDE_ASSEMBLER, ModBlocks.MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER,
                             ModBlocks.RAIN_SENSOR, ModBlocks.FINITE_ICE, ModBlocks.FINITE_WATER, Blocks.IRON_BLOCK};
@@ -72,8 +73,10 @@ public final class ShaderClientProbe implements ClientModInitializer {
                 });
             }
             ++ticks;
+            if (ticks == 80) ShaderFrameProbe.verify(3);
+            if (ticks == 110) client.getSingleplayerServer().execute(() -> ShaderFrameProbe.shrink(client.getSingleplayerServer().overworld()));
             boolean shader = Boolean.getBoolean("immersivefluids.shaderProbePack");
-            if (shader && ticks == 70) net.minecraft.client.Screenshot.grab(client.gameDirectory,
+            if (ticks == 70) net.minecraft.client.Screenshot.grab(client.gameDirectory,
                     "machinery.png", client.gameRenderer.mainRenderTarget(), 1, message -> {});
             if (shader && ticks == 80) { ShaderMaterialProbe.verifyPipeline(); ShaderMaterialProbe.toggle(false); }
             if (shader && ticks == 100) ShaderMaterialProbe.toggle(true);
@@ -81,6 +84,7 @@ public final class ShaderClientProbe implements ClientModInitializer {
             if (ticks >= (shader ? 260 : 160) && (resourceReload == null || resourceReload.isDone())) {
                 if (shader) ShadowProbe.verify();
                 if (resourceReload != null) resourceReload.join();
+                ShaderFrameProbe.verify(2);
                 if (FabricLoader.getInstance().isModLoaded("iris")) ShaderMaterialProbe.verifyPipeline();
                 LoggerFactory.getLogger("immersivefluids").info("SHADER_CLIENT_WORLD_RENDER_PASS");
                 client.stop();
