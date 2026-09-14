@@ -9,6 +9,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.WaterloggedTransparentBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -86,8 +87,8 @@ public final class RainSensorBlock extends WaterloggedTransparentBlock {
         var fluid = state.getFluidState();
         boolean submerged = fluid.getAmount() > 2 && (ModFluids.isFiniteWater(fluid.getType())
                 || fluid.is(Fluids.WATER) || fluid.is(Fluids.FLOWING_WATER));
-        // Rain particles are client-only. The server checks whether rain reaches this column.
-        boolean detected = submerged || level.isRainingAt(pos.above());
+        // Precipitation particles are client-only. The server checks whether rain or snow reaches this column.
+        boolean detected = submerged || level.precipitationAt(pos.above()) != Biome.Precipitation.NONE;
         return state.setValue(POWERED, detected != state.getValue(INVERTED));
     }
 

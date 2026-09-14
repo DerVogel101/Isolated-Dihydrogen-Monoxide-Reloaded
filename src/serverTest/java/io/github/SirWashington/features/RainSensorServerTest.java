@@ -117,11 +117,12 @@ public final class RainSensorServerTest implements ModInitializer {
             FiniteWaterPhysics.setWaterLevel(level, POS, 0);
         }
         level.setBlock(POS.above(2), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        for (String biome : new String[]{"desert", "snowy_plains"}) {
-            biome(level, biome);
-            tickSensor(level);
-            expectSignal(level, 0, "No rain detection in " + biome);
-        }
+        biome(level, "desert");
+        tickSensor(level);
+        expectSignal(level, 0, "No precipitation detection in desert");
+        biome(level, "snowy_plains");
+        tickSensor(level);
+        expectSignal(level, 15, "Exposed snow");
         biome(level, "plains");
         level.setRainLevel(0);
         level.setBlock(POS, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
