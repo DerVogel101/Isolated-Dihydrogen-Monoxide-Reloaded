@@ -11,7 +11,9 @@ def licenseArchiveName = project.archives_base_name
 def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
-def iceTest = providers.gradleProperty('iceTest').isPresent()
+def earlyRulesTest = providers.gradleProperty('earlyRulesTest').isPresent()
+def earlyRulesDefaults = providers.gradleProperty('earlyRulesTest').orNull == 'defaults'
+def iceTest = providers.gradleProperty('iceTest').isPresent() || earlyRulesTest
 def valveTest = providers.gradleProperty('valveTest').isPresent()
 def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
@@ -46,7 +48,8 @@ loom {
 	runs {
 		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
 			server {
-				runDir fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
+				runDir earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -77,7 +80,8 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 	implementation "curse.maven:framework-549225:${project.framework_file_id}"
-	testRuntimeOnly "com.electronwill.night-config:core:3.8.3"
+	compileOnly "com.electronwill.night-config:toml:3.8.3"
+	testImplementation "com.electronwill.night-config:toml:3.8.3"
 	// Optional client integration: never bundle Iris/Sodium or require them on servers.
 	clientCompileOnly('maven.modrinth:iris:oaD6KQls') { transitive = false }
 	clientCompileOnly('maven.modrinth:sodium:2Yom1N68') { transitive = false }
@@ -91,6 +95,7 @@ processResources {
 	inputs.property "cropTest", cropTest
 	inputs.property "sensorTest", sensorTest
 	inputs.property "iceTest", iceTest
+	inputs.property "earlyRulesTest", earlyRulesTest
 	inputs.property "pumpTest", pumpTest
 	inputs.property "valveTest", valveTest
 	inputs.property "generatorTest", generatorTest
@@ -122,7 +127,7 @@ processResources {
 		}
 		if (iceTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteIceServerTest"') }
+					earlyRulesTest ? '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.EarlyWaterloggingRulesServerTest"' : '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteIceServerTest"') }
 		}
 		if (dripstoneTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
@@ -147,6 +152,10 @@ tasks.register("physicsSelfTest", JavaExec) {
 	dependsOn testClasses
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = "io.github.SirWashington.features.FiniteWaterMathSelfTest"
+	// Keep the regression recording out of Windows' potentially inaccessible system temp directory.
+	systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
+	jvmArgs "-XX:FlightRecorderOptions=repository=${temporaryDir.absolutePath}"
+	doFirst { temporaryDir.mkdirs() }
 }
 
 test {
@@ -167,6 +176,47 @@ tasks.register('iceRenderSelfTest', JavaExec) {
 }
 
 check.dependsOn physicsSelfTest, iceRenderSelfTest
+
+tasks.register('earlyRulesSelfTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'io.github.SirWashington.EarlyWaterloggingRulesSelfTest'
+    systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
+    doFirst { temporaryDir.mkdirs() }
+}
+check.dependsOn earlyRulesSelfTest
+
+if (earlyRulesTest) {
+    tasks.named('runServer') {
+        doFirst {
+            def run = file('build/early-rules-test-server')
+            new File(run, 'config/immersivefluids').mkdirs()
+            new File(run, 'eula.txt').text = 'eula=true\n'
+            new File(run, 'server.properties').text = 'online-mode=false\nserver-ip=127.0.0.1\nserver-port=0\nview-distance=2\nsimulation-distance=2\n'
+            def rules = new File(run, 'config/immersivefluids/waterlogging.toml')
+            if (earlyRulesDefaults) {
+                if (rules.exists() && !rules.delete()) throw new GradleException('Cannot reset isolated rules fixture')
+            } else {
+                rules.text = '''excluded_blocks = ['minecraft:barrier', 'minecraft:beacon', '#minecraft:leaves', '#minecraft:shulker_boxes', '#minecraft:walls', '#c:glass_panes', '#minecraft:wooden_slabs', 'minecraft:*_stairs', '@immersivefluids']
+included_blocks = ['minecraft:oak_slab', '#minecraft:wooden_stairs', 'immersivefluids:*', 'minecraft:oak_leaves', 'minecraft:cobblestone_wall', 'minecraft:glass_pane', 'minecraft:barrier', 'minecraft:beacon', 'minecraft:shulker_box']
+debug = true
+debug_state_threshold = 6480
+'''
+            }
+        }
+        doLast {
+            def log = file('build/early-rules-test-server/logs/latest.log').text
+            if (!log.contains('EARLY_WATERLOGGING_SERVER_TEST_PASS')) {
+                throw new GradleException('Early waterlogging state test failed')
+            }
+            if (earlyRulesDefaults ? log.contains('Waterlogging state debug:') :
+                    (!log.contains('Waterlogging state debug: minecraft:cobblestone_wall has 26244 states')
+                            || log.contains('Waterlogging state debug: minecraft:oak_stairs '))) {
+                throw new GradleException('Startup debug logging ignored enable flag or strict threshold')
+            }
+        }
+    }
+}
 
 tasks.register('shaderSelfTest', JavaExec) {
 	dependsOn clientTestClasses
@@ -193,7 +243,7 @@ if (pumpTest) {
 	}
 }
 
-if (iceTest) {
+if (iceTest && !earlyRulesTest) {
 	tasks.named('runServer') {
 		doLast {
 			if (!file('build/ice-test-server/logs/latest.log').text.contains('FINITE_ICE_SERVER_TEST_PASS')) {

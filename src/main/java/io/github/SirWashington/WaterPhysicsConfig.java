@@ -9,15 +9,31 @@ import com.mrcrayfish.framework.api.config.FrameworkConfig;
 import com.mrcrayfish.framework.api.config.IntProperty;
 import com.mrcrayfish.framework.api.config.ListProperty;
 import io.github.SirWashington.block.ModBlockTags;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.List;
 
 public final class WaterPhysicsConfig {
+    private static final MethodHandle IS_LINKED;
+
+    static {
+        try {
+            // Framework keeps this check private; resolve it once, including its unloaded-proxy state.
+            IS_LINKED = MethodHandles.privateLookupIn(AbstractProperty.class, MethodHandles.lookup())
+                    .findVirtual(AbstractProperty.class, "isLinked", MethodType.methodType(boolean.class));
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     @FrameworkConfig(id = WaterPhysics.MODID, name = "server", type = ConfigType.SERVER)
     public static final Values SERVER = new Values();
+
+    @FrameworkConfig(id = WaterPhysics.MODID, name = "waterlogging", type = ConfigType.UNIVERSAL)
+    public static final Waterlogging WATERLOGGING = new Waterlogging();
 
     private WaterPhysicsConfig() {
     }
@@ -117,16 +133,13 @@ public final class WaterPhysicsConfig {
         return get(SERVER.currents.maxDownwardSpeed);
     }
 
-    public static boolean isWaterloggingExcluded(Block block) {
-        String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
-        return get(SERVER.waterlogging.excludedBlocks).contains(blockId);
-    }
-
     private static <T> T get(AbstractProperty<T> property) {
         try {
-            return property.get();
-        } catch (IllegalStateException ignored) {
-            return property.getDefaultValue();
+            return (boolean) IS_LINKED.invokeExact(property) ? property.get() : property.getDefaultValue();
+        } catch (RuntimeException | Error e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new AssertionError("Cannot check Framework config linkage", e);
         }
     }
 
@@ -149,8 +162,6 @@ public final class WaterPhysicsConfig {
         @ConfigProperty(name = "currents", comment = "Entity currents produced by moving finite water")
         public final Currents currents = new Currents();
 
-        @ConfigProperty(name = "waterlogging", comment = "Runtime exclusions for supported waterloggable blocks")
-        public final Waterlogging waterlogging = new Waterlogging();
 
         @ConfigProperty(name = "piston_pressure", comment = "Limits for piston pressure searches")
         public final PistonPressure pistonPressure = new PistonPressure();
@@ -235,12 +246,19 @@ public final class WaterPhysicsConfig {
     }
 
     public static final class Waterlogging {
+        @ConfigProperty(name = "debug", comment = "Log blocks whose final state count exceeds debug_state_threshold during startup.", gameRestart = true)
+        public final BoolProperty debug = BoolProperty.create(false);
+        @ConfigProperty(name = "debug_state_threshold", comment = "Only log state counts strictly above this threshold when debug is true.", gameRestart = true)
+        public final IntProperty debugStateThreshold = IntProperty.create(6480, 0, Integer.MAX_VALUE);
         @ConfigProperty(
                 name = "excluded_blocks",
-                comment = "Supported block IDs that must not hold finite water; requires a world restart",
-                worldRestart = true
+                comment = "Early exclusions: block IDs, @modid, #bundled:block_tag, or * wildcards. Full game restart required; client and server must agree.",
+                gameRestart = true
         )
-        public final ListProperty<String> excludedBlocks = ListProperty.create(ListProperty.STRING);
+        public final ListProperty<String> excludedBlocks = ListProperty.create(ListProperty.STRING,
+                () -> EarlyWaterloggingRules.DEFAULT_EXCLUDED);
+        @ConfigProperty(name = "included_blocks", comment = "Overrides excluded_blocks for supported blocks, using the same selectors. Full game restart required.", gameRestart = true)
+        public final ListProperty<String> includedBlocks = ListProperty.create(ListProperty.STRING);
     }
 
     public static final class Pump {

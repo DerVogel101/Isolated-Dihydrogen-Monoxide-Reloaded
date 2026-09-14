@@ -4,6 +4,8 @@
   "package": "io.github.SirWashington.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "BlockPropertiesAccessor",
+    "FrameworkConfigPathMixin",
     "MixinAquaticPlantBlock",
     "MixinBlockStateBase",
     "MixinBucketItem",

@@ -1,8 +1,14 @@
 package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
+import com.electronwill.nightconfig.core.Config;
+import com.electronwill.nightconfig.core.UnmodifiableConfig;
+import com.mrcrayfish.framework.api.config.AbstractProperty;
 import com.mrcrayfish.framework.api.config.ConfigType;
 import com.mrcrayfish.framework.api.config.FrameworkConfig;
+import com.mrcrayfish.framework.config.FrameworkConfigManager.ValueProxy;
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordingFile;
 import io.github.SirWashington.block.ModBlockTags;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -21,6 +27,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -486,13 +493,14 @@ public final class FiniteWaterMathSelfTest {
     }
 
     private static void verifyWaterPhysicsConfig() throws Exception {
+        verifyConfigLinkage();
         var maxDepth = WaterPhysicsConfig.SERVER.pistonPressure.maxDepth;
         var maxVisited = WaterPhysicsConfig.SERVER.pistonPressure.maxVisitedWaterCells;
         var flow = WaterPhysicsConfig.SERVER.flow;
         var extinguishing = WaterPhysicsConfig.SERVER.extinguishing;
         var doorPressure = WaterPhysicsConfig.SERVER.doorPressure;
         var currents = WaterPhysicsConfig.SERVER.currents;
-        var excludedBlocks = WaterPhysicsConfig.SERVER.waterlogging.excludedBlocks;
+        var excludedBlocks = WaterPhysicsConfig.WATERLOGGING.excludedBlocks;
         FrameworkConfig config = WaterPhysicsConfig.class.getField("SERVER").getAnnotation(FrameworkConfig.class);
         if (config == null || !config.id().equals("immersivefluids") || !config.name().equals("server")
                 || config.type() != ConfigType.SERVER
@@ -523,7 +531,7 @@ public final class FiniteWaterMathSelfTest {
                 || currents.maxHorizontalSpeed.getDefaultValue() != 0.7D
                 || currents.maxUpwardSpeed.getDefaultValue() != 0.7D
                 || currents.maxDownwardSpeed.getDefaultValue() != 0.3D
-                || !excludedBlocks.getDefaultValue().isEmpty()
+                || !excludedBlocks.getDefaultValue().equals(io.github.SirWashington.EarlyWaterloggingRules.DEFAULT_EXCLUDED)
                 || WaterPhysicsConfig.flowTickDelay() != 2
                 || WaterPhysicsConfig.puddleSearchRadius() != 4
                 || WaterPhysicsConfig.extendedDrainMaxPathLength() != 32
@@ -533,7 +541,6 @@ public final class FiniteWaterMathSelfTest {
                 || WaterPhysicsConfig.doorPressureRequiredLevelPerHalf() != 8
                 || !WaterPhysicsConfig.currentsEnabled()
                 || WaterPhysicsConfig.currentDurationTicks() != 10
-                || WaterPhysicsConfig.isWaterloggingExcluded(Blocks.OAK_SLAB)
                 || !ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_slab")
                 || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_stairs")
                 || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "not an identifier")) {
@@ -565,6 +572,106 @@ public final class FiniteWaterMathSelfTest {
                 || FiniteWaterPhysics.isVanillaLava(Fluids.EMPTY)) {
             throw new AssertionError("Finite-water contact fluid classification is invalid");
         }
+    }
+
+    private static void verifyConfigLinkage() throws Exception {
+        var delay = WaterPhysicsConfig.SERVER.flow.tickDelay;
+        var exclusions = WaterPhysicsConfig.WATERLOGGING.excludedBlocks;
+        var proxyField = AbstractProperty.class.getDeclaredField("proxy");
+        proxyField.setAccessible(true);
+        var emptyField = ValueProxy.class.getDeclaredField("EMPTY");
+        emptyField.setAccessible(true);
+        var empty = (ValueProxy) emptyField.get(null);
+        var constructor = ValueProxy.class.getDeclaredConstructor(UnmodifiableConfig.class, List.class, boolean.class);
+        constructor.setAccessible(true);
+        var originalDelay = proxyField.get(delay);
+        var originalExclusions = proxyField.get(exclusions);
+        var recordingPath = Files.createTempFile("finite-water-config-", ".jfr");
+        try (var recording = new Recording()) {
+            recording.enable("jdk.JavaExceptionThrow").withStackTrace();
+            recording.start();
+            verifyTagLinkage();
+            // Both cold construction and Framework's unloaded sentinel must avoid exception-based defaults.
+            for (var proxy : new ValueProxy[]{null, empty}) {
+                proxyField.set(delay, proxy);
+                proxyField.set(exclusions, proxy);
+                for (int i = 0; i < 1000; i++) {
+                    if (WaterPhysicsConfig.flowTickDelay() != 2) {
+                        throw new AssertionError("Unlinked config must use defaults");
+                    }
+                }
+            }
+            var config = Config.inMemory();
+            config.set("delay", 7);
+            config.set("exclusions", List.of("minecraft:oak_slab"));
+            delay.updateProxy(constructor.newInstance(config, List.of("delay"), false));
+            exclusions.updateProxy(constructor.newInstance(config, List.of("exclusions"), true));
+            if (WaterPhysicsConfig.flowTickDelay() != 7
+                    || !exclusions.get().equals(List.of("minecraft:oak_slab"))) {
+                throw new AssertionError("Linked config must use configured values, including read-only sync values");
+            }
+            delay.set(9);
+            if (WaterPhysicsConfig.flowTickDelay() != 9) {
+                throw new AssertionError("Config edits must remain visible");
+            }
+            delay.updateProxy(empty);
+            exclusions.updateProxy(empty);
+            if (WaterPhysicsConfig.flowTickDelay() != 2) {
+                throw new AssertionError("Unloading config must restore defaults");
+            }
+            config.set("delay", 11);
+            config.set("exclusions", List.of("minecraft:oak_stairs"));
+            delay.updateProxy(constructor.newInstance(config, List.of("delay"), true));
+            exclusions.updateProxy(constructor.newInstance(config, List.of("exclusions"), true));
+            if (WaterPhysicsConfig.flowTickDelay() != 11
+                    || !exclusions.get().equals(List.of("minecraft:oak_stairs"))) {
+                throw new AssertionError("Reloaded/synchronized config must replace old values and defaults");
+            }
+            recording.stop();
+            recording.dump(recordingPath);
+            for (var event : RecordingFile.readAllEvents(recordingPath)) {
+                if ("Config property is not linked yet".equals(event.getString("message"))
+                        || "Tags not bound".equals(event.getString("message"))) {
+                    throw new AssertionError("Early lookup constructed an exception: " + event.getStackTrace());
+                }
+            }
+        } finally {
+            proxyField.set(delay, originalDelay);
+            proxyField.set(exclusions, originalExclusions);
+            delay.invalidateCache();
+            exclusions.invalidateCache();
+            Files.deleteIfExists(recordingPath);
+        }
+        System.out.println("CONFIG_LINKAGE_SELF_TEST_PASS");
+    }
+
+    private static void verifyTagLinkage() throws Exception {
+        var state = Blocks.OAK_SLAB.defaultBlockState();
+        var holder = state.getBlock().builtInRegistryHolder();
+        var tagsField = net.minecraft.core.Holder.Reference.class.getDeclaredField("tags");
+        tagsField.setAccessible(true);
+        var original = tagsField.get(holder);
+        try {
+            tagsField.set(holder, null);
+            for (int i = 0; i < 1000; i++) {
+                if (ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)) {
+                    throw new AssertionError("Unbound tags must return false");
+                }
+            }
+            tagsField.set(holder, Set.of(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED));
+            if (!ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)
+                    || ModBlockTags.contains(ModBlockTags.EXTENDED_DRAIN_PATH, state)) {
+                throw new AssertionError("Bound tags must preserve membership");
+            }
+            tagsField.set(holder, Set.of(ModBlockTags.EXTENDED_DRAIN_PATH));
+            if (ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)
+                    || !ModBlockTags.contains(ModBlockTags.EXTENDED_DRAIN_PATH, state)) {
+                throw new AssertionError("Tag reload must replace membership");
+            }
+        } finally {
+            tagsField.set(holder, original);
+        }
+        System.out.println("TAG_LINKAGE_SELF_TEST_PASS");
     }
 
     private static void verifyFireExtinguishing() {
@@ -642,15 +749,17 @@ public final class FiniteWaterMathSelfTest {
                 || FiniteWaterloggedPlants.supports(Blocks.STONE)
                 || FiniteWaterloggedPlants.supports(Blocks.MOSS_BLOCK)
                 || FiniteWaterloggedPlants.supports(Blocks.PALE_MOSS_BLOCK)
-                || FiniteWaterloggedPlants.supports(Blocks.HAY_BLOCK)
-                || FiniteWaterloggedPlants.supports(Blocks.OAK_LEAVES)
-                || FiniteWaterloggedPlants.supports(Blocks.COBBLESTONE_WALL)
-                || FiniteWaterloggedPlants.supports(Blocks.GLASS_PANE)
-                || Blocks.STAINED_GLASS_PANE.asList().stream().anyMatch(FiniteWaterloggedPlants::supports)
-                || FiniteWaterloggedPlants.supports(Blocks.BARRIER)
-                || FiniteWaterloggedPlants.supports(Blocks.BEACON)
-                || FiniteWaterloggedPlants.supports(Blocks.SHULKER_BOX)) {
-            throw new AssertionError("Finite-water support ignored an explicit exclusion");
+                || FiniteWaterloggedPlants.supports(Blocks.HAY_BLOCK)) {
+            throw new AssertionError("Finite-water support includes unsupported full blocks");
+        }
+        if (!FiniteWaterloggedPlants.supports(Blocks.OAK_LEAVES)
+                || !FiniteWaterloggedPlants.supports(Blocks.COBBLESTONE_WALL)
+                || !FiniteWaterloggedPlants.supports(Blocks.GLASS_PANE)
+                || Blocks.STAINED_GLASS_PANE.asList().stream().anyMatch(block -> !FiniteWaterloggedPlants.supports(block))
+                || !FiniteWaterloggedPlants.supports(Blocks.BARRIER)
+                || !FiniteWaterloggedPlants.supports(Blocks.BEACON)
+                || !FiniteWaterloggedPlants.supports(Blocks.SHULKER_BOX)) {
+            throw new AssertionError("Default exclusions must remain eligible for explicit inclusion");
         }
         if (FiniteWaterloggedPlants.LEVEL.getPossibleValues().size() != 9
                 || !FiniteWaterloggedPlants.LEVEL.getPossibleValues().contains(0)
@@ -841,7 +950,7 @@ public final class FiniteWaterMathSelfTest {
         verifyTagResource("extended_drain_path");
         verifyTagResource("ignores_own_shape_for_outflow");
         verifyTagResource("water_pressure_openable_doors", "#minecraft:wooden_doors");
-        verifyTagResource("finite_waterlogging_excluded", "#minecraft:walls");
+        verifyTagResource("finite_waterlogging_excluded");
         verifyTagResource(
                 "finite_water_extinguishable",
                 "#minecraft:campfires", "#minecraft:candles", "#minecraft:candle_cakes"

@@ -23,10 +23,9 @@ public final class FiniteWaterloggedPlants {
     }
 
     public static boolean supports(Block block) {
-        if (isExcluded(block)) {
-            return false;
-        }
         return block instanceof SimpleWaterloggedBlock
+                || block instanceof BeaconBlock
+                || block instanceof ShulkerBoxBlock
                 || block instanceof SnowLayerBlock
                 || block instanceof VegetationBlock
                 || block instanceof GrowingPlantBlock
@@ -91,22 +90,9 @@ public final class FiniteWaterloggedPlants {
                 || block instanceof WebBlock;
     }
 
-    private static boolean isExcluded(Block block) {
-        return block instanceof BarrierBlock
-                || block instanceof BeaconBlock
-                || block instanceof LeavesBlock
-                || block instanceof ShulkerBoxBlock
-                || block instanceof WallBlock
-                || block instanceof StainedGlassPaneBlock
-                // Runs during Block construction: never call a modded description override.
-                // Vanilla clear panes and iron bars share this exact class.
-                || (block.getClass() == IronBarsBlock.class && block.getDescriptionId().endsWith("glass_pane"));
-    }
-
     public static boolean canHoldFiniteWater(BlockState state) {
         return state.hasProperty(LEVEL)
                 && !ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)
-                && !WaterPhysicsConfig.isWaterloggingExcluded(state.getBlock())
                 && (!state.hasProperty(BlockStateProperties.SLAB_TYPE)
                 || state.getValue(BlockStateProperties.SLAB_TYPE) != SlabType.DOUBLE);
     }

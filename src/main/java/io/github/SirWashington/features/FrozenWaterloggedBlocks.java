@@ -1,5 +1,10 @@
 package io.github.SirWashington.features;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import java.util.List;
+import java.util.stream.IntStream;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.world.InteractionResult;
@@ -37,6 +42,14 @@ public final class FrozenWaterloggedBlocks {
     }
     public static final EnumProperty<Phase> FROZEN = EnumProperty.create("finite_water_frozen", Phase.class);
 
+    // Bound retention for mods that generate fresh shapes; weak keys also compare by identity.
+    private static final List<LoadingCache<VoxelShape, VoxelShape>> ICE_SHAPES = IntStream.rangeClosed(0, 8)
+            .mapToObj(height -> {
+                VoxelShape ice = Block.box(0, 0, 0, 16, height * 2, 16);
+                return CacheBuilder.newBuilder().weakKeys().maximumSize(2048)
+                        .build(CacheLoader.from((VoxelShape original) -> Shapes.or(original, ice)));
+            }).toList();
+
     private FrozenWaterloggedBlocks() {}
 
     public static boolean isFrozen(BlockState state) {
@@ -71,7 +84,12 @@ public final class FrozenWaterloggedBlocks {
     }
 
     public static VoxelShape withIce(BlockState state, VoxelShape original) {
-        return isFrozen(state) ? Shapes.or(original, Block.box(0, 0, 0, 16, iceHeight(state) * 2, 16)) : original;
+        if (!isFrozen(state)) return original;
+        var cache = ICE_SHAPES.get(iceHeight(state));
+        VoxelShape result = cache.getUnchecked(original);
+        // Both collision overloads are hooked; composing an already iced shape is a no-op.
+        cache.put(result, result);
+        return result;
     }
 
     private static BlockPos partner(BlockState state, BlockPos pos) {

@@ -69,9 +69,10 @@ See [shader compatibility and validation](docs/shader-compatibility.md) for cove
 
 ### Physics
 
-Global physics values are stored in `config/immersivefluids.server.toml` and can also be edited
+Global physics values are stored in `config/immersivefluids/server.toml` and can also be edited
 through Configured. They cover flow timing, normal and extended drain-search limits, extinguishing,
-door pressure, entity-current strength and speed limits, waterlogging exclusions, and piston pressure.
+door pressure, entity-current strength and speed limits, and piston pressure. Waterlogging rules
+are stored separately in `config/immersivefluids/waterlogging.toml`.
 
 Hanging pointed dripstone supplied by exactly eight finite-water units above its support block
 produces one finite-water unit per successful drip, without consuming the source. Drips create
@@ -95,9 +96,49 @@ The isolated dedicated-server regression is available with
 `./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PcropTest runServer --args="--nogui" --no-daemon`
 (server directory: `build/crop-test-server`, with its own EULA/server settings).
 
-`waterlogging.excluded_blocks` accepts block IDs that already support finite water, for example
-`["minecraft:oak_slab"]`. It cannot add the `finite_water_level` property to otherwise unsupported
-blocks because block states are created before the server config is loaded.
+Waterlogging selection is read from its own `config/immersivefluids/waterlogging.toml` before block states are
+constructed. Exclusions prevent the extra water/frozen states and their initialization work.
+The separate inclusion list is applied afterward and wins over configured exclusions:
+
+```toml
+excluded_blocks = ["minecraft:barrier", "minecraft:beacon", "#minecraft:leaves", "#minecraft:shulker_boxes", "#minecraft:walls", "#c:glass_panes"]
+included_blocks = []
+debug = false
+debug_state_threshold = 6480
+```
+
+Both lists accept exact block IDs, `@modid` namespaces (not display names), `#namespace:tag`,
+and `*` matching zero or more characters. Inclusions only restore blocks the mod already supports;
+they do not bypass custom datapack entries in the runtime `finite_waterlogging_excluded` tag.
+Excluding blocks that never receive these states saves no additional state initialization.
+
+Set `debug = true` to log each block whose final state count is strictly greater than
+`debug_state_threshold` (default `6480`) when its state definition is created. Counts include
+all properties, including water/frozen states where added. Messages appear at INFO level in
+the console and `logs/latest.log`, with the block ID and count. Restart to apply these settings.
+
+The defaults above replace the former hardcoded exclusions. Remove a selector or add an inclusion
+such as `"minecraft:glass_pane"` to enable a previously excluded block. Add selectors such as
+`"@railways"`, `"#minecraft:dirt"`, `"railways:train_track_*"` or `"railways:*_track"` as needed.
+Modded variants must appear in these tags or match an explicit selector; class inheritance alone
+no longer excludes them. Missing files receive these defaults; explicit empty lists stay empty.
+Old config files are not migrated or read. The new waterlogging file uses root-level lists, without
+a `[waterlogging]` table. Both files remain available through Framework's config UI.
+
+Tags are a startup snapshot of vanilla and installed mods' base resources, including nested tags.
+Resources merge in vanilla-first, then mod-ID order; `replace` clears preceding values.
+World datapacks, optional built-in packs and tags generated at runtime cannot affect this snapshot.
+Malformed rules and unavailable required tags stop startup with an error instead of silently
+changing which blocks receive states.
+
+**Fully restart the game/server after editing these lists.** Use identical lists and mod resources
+on both client and server; server config synchronization happens too late to change state definitions.
+Removing support from blocks in an existing world can discard their stored finite water/frozen state.
+
+Run the isolated startup/state-count regression with
+`./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PearlyRulesTest runServer --args="--nogui" --offline`.
+It creates its own config and world under `build/early-rules-test-server`. Use
+`-PearlyRulesTest=defaults` instead to verify first-launch defaults and config creation.
 
 Datapacks can replace or extend these block tags:
 
@@ -106,7 +147,7 @@ Datapacks can replace or extend these block tags:
 | `immersivefluids:extended_drain_path` | Empty; additive to the Configured list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
 | `immersivefluids:ignores_own_shape_for_outflow` | Empty | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces. |
 | `immersivefluids:water_pressure_openable_doors` | `#minecraft:wooden_doors` | Selects doors water may push open from outside to inside. |
-| `immersivefluids:finite_waterlogging_excluded` | `#minecraft:walls` | Disables finite-water storage on otherwise supported blocks. |
+| `immersivefluids:finite_waterlogging_excluded` | empty | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`. |
 | `immersivefluids:finite_water_extinguishable` | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level. |
 
 Adjacent extended-path blocks ignore the destination entry barrier when it is equal to or lower than

@@ -43,6 +43,7 @@ public final class FiniteIceServerTest implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> verifyShapeCache());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> server.overworld().setChunkForced(0, 0, true));
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (ran) {
@@ -225,6 +226,32 @@ public final class FiniteIceServerTest implements ModInitializer {
                 }
             }
         });
+    }
+
+    private static void verifyShapeCache() {
+        var hosts = List.of(Blocks.OAK_SLAB, Blocks.OAK_STAIRS, Blocks.OAK_DOOR, Blocks.CHEST,
+                Blocks.SNOW, Blocks.POTTED_DANDELION);
+        var shapes = List.of(net.minecraft.world.phys.shapes.Shapes.empty(),
+                net.minecraft.world.phys.shapes.Shapes.block(),
+                Block.box(0, 0, 0, 3, 16, 16), Block.box(13, 0, 0, 16, 16, 16));
+        int checked = 0;
+        for (var host : hosts) {
+            for (var state : host.getStateDefinition().getPossibleStates()) {
+                for (var original : shapes) {
+                    var expected = FrozenWaterloggedBlocks.isFrozen(state)
+                            ? net.minecraft.world.phys.shapes.Shapes.or(original,
+                                    Block.box(0, 0, 0, 16, FrozenWaterloggedBlocks.iceHeight(state) * 2, 16))
+                            : original;
+                    var actual = FrozenWaterloggedBlocks.withIce(state, original);
+                    expect(!net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(expected, actual,
+                            net.minecraft.world.phys.shapes.BooleanOp.NOT_SAME), "Cached ice shape preserves volume: " + state);
+                    expect(actual == FrozenWaterloggedBlocks.withIce(state, original), "Equivalent shapes are reused");
+                    expect(actual == FrozenWaterloggedBlocks.withIce(state, actual), "Double collision hook reuses iced shape");
+                    checked++;
+                }
+            }
+        }
+        System.out.println("FROZEN_SHAPE_CACHE_PARITY_PASS cases=" + checked);
     }
 
     private static void layer(ServerLevel level, int ice) {
