@@ -1,11 +1,16 @@
 package io.github.SirWashington.item;
 
 
+import io.github.SirWashington.WaterPhysics;
 import io.github.SirWashington.component.ModDataComponentTypes;
 import io.github.SirWashington.block.ModBlocks;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.*;
 
@@ -43,6 +48,11 @@ public class ModItems {
             new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)
     );
 
+    public static final ResourceKey<CreativeModeTab> CREATIVE_TAB = ResourceKey.create(
+            Registries.CREATIVE_MODE_TAB,
+            Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "creative_tab")
+    );
+
     private static Item register(ResourceKey<Item> key, Function<Item.Properties, Item> factory, Item.Properties properties) {
         Item item = factory.apply(properties.setId(key));
         if (item instanceof BlockItem blockItem) blockItem.registerBlocks(Item.BY_BLOCK, item);
@@ -50,6 +60,28 @@ public class ModItems {
     }
 
     public static void initialize() {
+        Registry.register(
+                BuiltInRegistries.CREATIVE_MODE_TAB,
+                CREATIVE_TAB,
+                FabricCreativeModeTab.builder()
+                        .title(Component.translatable("itemGroup.immersivefluids"))
+                        .icon(() -> new ItemStack(FINITE_WATER_BUCKET))
+                        .displayItems((parameters, output) -> {
+                            output.accept(WATER_VALVE);
+                            output.accept(WATER_PUMP);
+                            output.accept(MUTED_WATER_PUMP);
+                            output.accept(DIHYDROGEN_MONOXIDE_ASSEMBLER);
+                            output.accept(MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER);
+                            output.accept(COMPRESSED_WOOL);
+                            output.accept(DOUBLE_COMPRESSED_WOOL);
+                            output.accept(INSULATOR_SHARD);
+                            output.accept(FINITE_ICE);
+                            output.accept(RAIN_SENSOR);
+                            output.accept(PRECISION_BUCKET);
+                            output.accept(FINITE_WATER_BUCKET);
+                        })
+                        .build()
+        );
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.INGREDIENTS).register(entries -> {
             entries.accept(COMPRESSED_WOOL);
             entries.accept(DOUBLE_COMPRESSED_WOOL);
