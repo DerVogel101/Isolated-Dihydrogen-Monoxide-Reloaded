@@ -9,6 +9,7 @@ group = project.maven_group
 def expandedModVersion = version
 def licenseArchiveName = project.archives_base_name
 def dripstoneTest = providers.gradleProperty('dripstoneTest').isPresent()
+def rainfallTest = providers.gradleProperty('rainfallTest').isPresent()
 def cropTest = providers.gradleProperty('cropTest').isPresent()
 def sensorTest = providers.gradleProperty('sensorTest').isPresent()
 def earlyRulesTest = providers.gradleProperty('earlyRulesTest').isPresent()
@@ -20,7 +21,7 @@ def pumpTest = providers.gradleProperty('pumpTest').isPresent()
 def fireTest = providers.gradleProperty('fireTest').isPresent()
 def fluidOptimizationTest = providers.gradleProperty('fluidOptimizationTest').isPresent()
 def shaderTest = providers.gradleProperty('shaderTest').orNull
-if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
+if (dripstoneTest || rainfallTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -47,14 +48,14 @@ loom {
 	}
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
+		if (dripstoneTest || rainfallTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
 			server {
 				if (fluidOptimizationTest) {
 					vmArg "-Djava.io.tmpdir=${file('build/fluid-optimization-test-server').absolutePath}"
 					vmArg "-XX:FlightRecorderOptions=repository=${file('build/fluid-optimization-test-server').absolutePath}"
 				}
 				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
-				runDir fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : rainfallTest ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -97,6 +98,7 @@ dependencies {
 processResources {
 	inputs.property "version", expandedModVersion
 	inputs.property "dripstoneTest", dripstoneTest
+	inputs.property "rainfallTest", rainfallTest
 	inputs.property "cropTest", cropTest
 	inputs.property "sensorTest", sensorTest
 	inputs.property "iceTest", iceTest
@@ -141,6 +143,10 @@ processResources {
 		if (dripstoneTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
 					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DripstoneServerTest"') }
+		}
+		if (rainfallTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
+					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.RainfallServerTest"') }
 		}
 		if (cropTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
@@ -287,6 +293,22 @@ if (dripstoneTest) {
 		doLast {
 			if (!file('build/dripstone-test-server/logs/latest.log').text.contains('DRIPSTONE_SERVER_TEST_PASS')) {
 				throw new GradleException('Dripstone server regression failed; inspect build/dripstone-test-server/logs/latest.log')
+			}
+		}
+	}
+}
+
+if (rainfallTest) {
+	tasks.named('runServer') {
+		doFirst {
+			def run = file('build/rainfall-test-server')
+			run.mkdirs()
+			new File(run, 'eula.txt').text = 'eula=true\n'
+			new File(run, 'server.properties').text = 'online-mode=false\nserver-ip=127.0.0.1\nserver-port=0\nview-distance=2\nsimulation-distance=2\n'
+		}
+		doLast {
+			if (!file('build/rainfall-test-server/logs/latest.log').text.contains('RAINFALL_SERVER_TEST_PASS')) {
+				throw new GradleException('Rainfall regression failed; inspect build/rainfall-test-server/logs/latest.log')
 			}
 		}
 	}

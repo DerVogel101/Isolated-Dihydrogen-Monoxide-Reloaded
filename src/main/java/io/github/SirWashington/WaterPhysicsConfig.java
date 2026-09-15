@@ -5,6 +5,7 @@ import com.mrcrayfish.framework.api.config.ConfigProperty;
 import com.mrcrayfish.framework.api.config.ConfigType;
 import com.mrcrayfish.framework.api.config.BoolProperty;
 import com.mrcrayfish.framework.api.config.DoubleProperty;
+import com.mrcrayfish.framework.api.config.EnumProperty;
 import com.mrcrayfish.framework.api.config.FrameworkConfig;
 import com.mrcrayfish.framework.api.config.IntProperty;
 import com.mrcrayfish.framework.api.config.ListProperty;
@@ -64,6 +65,46 @@ public final class WaterPhysicsConfig {
         return get(SERVER.dripstone.fillChance);
     }
 
+    public static boolean rainfallEnabled() {
+        return get(SERVER.rainfall.enabled);
+    }
+
+    public static double rainfallChangeChance() {
+        return get(SERVER.rainfall.rainChangeChance);
+    }
+
+    public static double dayEvaporationChance() {
+        return get(SERVER.rainfall.dayEvaporationChance);
+    }
+
+    public static boolean rainfallLimitedToPlayerRadius() {
+        return get(SERVER.rainfall.limitToPlayerRadius);
+    }
+
+    public static int rainfallPlayerRadiusChunks() {
+        return get(SERVER.rainfall.playerRadiusChunks);
+    }
+
+    public static OutsidePlayerRadiusBehavior rainfallOutsidePlayerRadiusBehavior() {
+        return get(SERVER.rainfall.outsidePlayerRadiusBehavior);
+    }
+
+    public static boolean isRainCollectionSurface(BlockState state) {
+        return matchesConfiguredBlocks(
+                state,
+                get(SERVER.rainfall.collectionIncludedBlocks),
+                get(SERVER.rainfall.collectionExcludedBlocks)
+        );
+    }
+
+    public static boolean isRainAbsorbingSurface(BlockState state) {
+        return matchesConfiguredBlocks(
+                state,
+                get(SERVER.rainfall.absorptionIncludedBlocks),
+                get(SERVER.rainfall.absorptionExcludedBlocks)
+        );
+    }
+
     public static int pistonPressureMaxVisitedWaterCells() {
         return get(SERVER.pistonPressure.maxVisitedWaterCells);
     }
@@ -87,6 +128,20 @@ public final class WaterPhysicsConfig {
     public static boolean isConfiguredExtendedDrainPath(BlockState state) {
         return get(SERVER.flow.extendedDrainPathBlocks).stream()
                 .anyMatch(selector -> ModBlockTags.matchesSelector(state, selector));
+    }
+
+    private static boolean matchesConfiguredBlocks(BlockState state, List<String> included, List<String> excluded) {
+        for (String selector : excluded) {
+            if (ModBlockTags.matchesSelector(state, selector)) {
+                return false;
+            }
+        }
+        for (String selector : included) {
+            if (ModBlockTags.matchesSelector(state, selector)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int extinguishingMinimumLevel() {
@@ -150,6 +205,9 @@ public final class WaterPhysicsConfig {
         @ConfigProperty(name = "dripstone", comment = "Finite-water production from hanging pointed dripstone")
         public final Dripstone dripstone = new Dripstone();
 
+        @ConfigProperty(name = "rainfall", comment = "Finite-water production, absorption, and evaporation from weather")
+        public final Rainfall rainfall = new Rainfall();
+
         @ConfigProperty(name = "flow", comment = "Finite-water flow timing and drain searches")
         public final Flow flow = new Flow();
 
@@ -196,6 +254,60 @@ public final class WaterPhysicsConfig {
 
         @ConfigProperty(name = "fill_chance", comment = "Chance per random tick to add one finite-water unit below; default matches vanilla water cauldron filling; zero disables accumulation")
         public final DoubleProperty fillChance = DoubleProperty.create(0.17578125D, 0.0D, 1.0D);
+    }
+
+    public static final class Rainfall {
+        @ConfigProperty(name = "enabled", comment = "Allow finite water levels 0-3 to change through rain, absorption, and evaporation; randomTickSpeed affects covered water")
+        public final BoolProperty enabled = BoolProperty.create(true);
+
+        @ConfigProperty(name = "limit_to_player_radius", comment = "Limit rainfall changes around players; outside behavior is controlled below")
+        public final BoolProperty limitToPlayerRadius = BoolProperty.create(true);
+
+        @ConfigProperty(name = "player_radius_chunks", comment = "Square chunk radius around same-dimension players; zero means their current chunks only")
+        public final IntProperty playerRadiusChunks = IntProperty.create(6, 0, Integer.MAX_VALUE);
+
+        @ConfigProperty(name = "outside_player_radius_behavior", comment = "DISAPPEAR_ONLY prevents collection; NOTHING prevents all rainfall changes")
+        public final EnumProperty<OutsidePlayerRadiusBehavior> outsidePlayerRadiusBehavior =
+                EnumProperty.create(OutsidePlayerRadiusBehavior.DISAPPEAR_ONLY);
+
+        @ConfigProperty(name = "rain_change_chance", comment = "Chance to add rain or absorb one level per eligible precipitation or covered-water random tick; maximum 0.5 keeps rain branches disjoint")
+        public final DoubleProperty rainChangeChance = DoubleProperty.create(0.075D, 0.0D, 0.5D);
+
+        @ConfigProperty(name = "day_evaporation_chance", comment = "Chance to evaporate one level per exposed clear-day sample or skylit covered-water random tick")
+        public final DoubleProperty dayEvaporationChance = DoubleProperty.create(0.5D, 0.0D, 1.0D);
+
+        @ConfigProperty(name = "collection_included_blocks", comment = "Surface block IDs, @modid, #block tags, or * wildcards that collect rain")
+        public final ListProperty<String> collectionIncludedBlocks = ListProperty.create(
+                ListProperty.STRING, () -> List.of("*:*")
+        );
+
+        @ConfigProperty(name = "collection_excluded_blocks", comment = "Collection exclusions using the same selectors; exclusions override inclusions")
+        public final ListProperty<String> collectionExcludedBlocks = ListProperty.create(ListProperty.STRING);
+
+        @ConfigProperty(name = "absorption_included_blocks", comment = "Surface block IDs, @modid, #block tags, or * wildcards that absorb shallow water")
+        public final ListProperty<String> absorptionIncludedBlocks = ListProperty.create(
+                ListProperty.STRING,
+                () -> List.of(
+                        "#minecraft:dirt",
+                        "minecraft:grass_block",
+                        "minecraft:podzol",
+                        "minecraft:mycelium",
+                        "minecraft:dirt_path",
+                        "minecraft:farmland",
+                        "minecraft:gravel",
+                        "minecraft:sand",
+                        "minecraft:red_sand",
+                        "minecraft:moss_block"
+                )
+        );
+
+        @ConfigProperty(name = "absorption_excluded_blocks", comment = "Absorption exclusions using the same selectors; exclusions override inclusions")
+        public final ListProperty<String> absorptionExcludedBlocks = ListProperty.create(ListProperty.STRING);
+    }
+
+    public enum OutsidePlayerRadiusBehavior {
+        DISAPPEAR_ONLY,
+        NOTHING
     }
 
     public static final class CropFertilization {

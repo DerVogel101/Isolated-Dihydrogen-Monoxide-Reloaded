@@ -1,6 +1,7 @@
 package io.github.SirWashington.mixin;
 
 import io.github.SirWashington.features.FiniteWaterFreezing;
+import io.github.SirWashington.features.FiniteWaterRainfall;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -12,8 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerLevel.class)
 public abstract class MixinServerLevel {
     @Inject(method = "tickPrecipitation", at = @At("HEAD"))
-    private void immersivefluids$freezeFiniteWater(BlockPos pos, CallbackInfo ci) {
+    private void immersivefluids$tickFiniteWaterWeather(BlockPos pos, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
-        FiniteWaterFreezing.freeze(level, level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, pos).below());
+        BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, pos).below();
+        FiniteWaterFreezing.freeze(level, surface);
+        FiniteWaterRainfall.tick(level, surface);
     }
 }

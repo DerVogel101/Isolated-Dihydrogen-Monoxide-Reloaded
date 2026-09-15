@@ -2,6 +2,7 @@ package io.github.SirWashington.fluid;
 
 import io.github.SirWashington.WaterPhysicsConfig;
 import io.github.SirWashington.block.ModBlocks;
+import io.github.SirWashington.features.FiniteWaterRainfall;
 import io.github.SirWashington.features.FiniteWaterPhysics;
 import io.github.SirWashington.item.ModItems;
 import net.minecraft.core.BlockPos;
@@ -121,11 +122,21 @@ public abstract class FiniteWaterFluid extends FlowingFluid {
     }
 
     @Override
+    protected void randomTick(ServerLevel level, BlockPos pos, FluidState state, RandomSource random) {
+        FiniteWaterRainfall.randomTick(level, pos, random);
+    }
+
+    @Override
     public void tick(ServerLevel level, BlockPos pos, BlockState blockState, FluidState fluidState) {
         FiniteWaterPhysics.tick(level, pos);
     }
 
     public static final class Flowing extends FiniteWaterFluid {
+        @Override
+        protected boolean isRandomlyTicking() {
+            return true;
+        }
+
         @Override
         protected void createFluidStateDefinition(StateDefinition.Builder<Fluid, FluidState> builder) {
             super.createFluidStateDefinition(builder);

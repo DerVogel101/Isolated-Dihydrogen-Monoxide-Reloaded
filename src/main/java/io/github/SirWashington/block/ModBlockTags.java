@@ -42,14 +42,45 @@ public final class ModBlockTags {
     }
 
     public static boolean matchesSelector(BlockState state, String selector) {
-        boolean tagSelector = selector.startsWith("#");
-        Identifier id = Identifier.tryParse(tagSelector ? selector.substring(1) : selector);
-        if (id == null) {
-            return false;
+        Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        if (selector.startsWith("#")) {
+            Identifier tagId = Identifier.tryParse(selector.substring(1));
+            return tagId != null && contains(TagKey.create(Registries.BLOCK, tagId), state);
         }
-        return tagSelector
-                ? contains(TagKey.create(Registries.BLOCK, id), state)
-                : BuiltInRegistries.BLOCK.getKey(state.getBlock()).equals(id);
+        if (selector.startsWith("@")) {
+            String namespace = selector.substring(1);
+            return Identifier.tryParse(namespace + ":block") != null && blockId.getNamespace().equals(namespace);
+        }
+        if (selector.indexOf('*') >= 0) {
+            return wildcardMatches(blockId.toString(), selector);
+        }
+        Identifier id = Identifier.tryParse(selector);
+        return id != null && blockId.equals(id);
+    }
+
+    private static boolean wildcardMatches(String value, String pattern) {
+        int valueIndex = 0;
+        int patternIndex = 0;
+        int starIndex = -1;
+        int starValueIndex = -1;
+        while (valueIndex < value.length()) {
+            if (patternIndex < pattern.length() && pattern.charAt(patternIndex) == value.charAt(valueIndex)) {
+                patternIndex++;
+                valueIndex++;
+            } else if (patternIndex < pattern.length() && pattern.charAt(patternIndex) == '*') {
+                starIndex = patternIndex++;
+                starValueIndex = valueIndex;
+            } else if (starIndex >= 0) {
+                patternIndex = starIndex + 1;
+                valueIndex = ++starValueIndex;
+            } else {
+                return false;
+            }
+        }
+        while (patternIndex < pattern.length() && pattern.charAt(patternIndex) == '*') {
+            patternIndex++;
+        }
+        return patternIndex == pattern.length();
     }
 
     private static TagKey<Block> create(String path) {
