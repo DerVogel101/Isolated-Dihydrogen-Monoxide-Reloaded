@@ -18,8 +18,9 @@ def valveTest = providers.gradleProperty('valveTest').isPresent()
 def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
 def fireTest = providers.gradleProperty('fireTest').isPresent()
+def fluidOptimizationTest = providers.gradleProperty('fluidOptimizationTest').isPresent()
 def shaderTest = providers.gradleProperty('shaderTest').orNull
-if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
+if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
 }
 
@@ -46,10 +47,14 @@ loom {
 	}
 
 	runs {
-		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest) {
+		if (dripstoneTest || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
 			server {
+				if (fluidOptimizationTest) {
+					vmArg "-Djava.io.tmpdir=${file('build/fluid-optimization-test-server').absolutePath}"
+					vmArg "-XX:FlightRecorderOptions=repository=${file('build/fluid-optimization-test-server').absolutePath}"
+				}
 				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
-				runDir earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
+				runDir fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : 'build/dripstone-test-server'
 			}
 		}
 		client {
@@ -100,10 +105,14 @@ processResources {
 	inputs.property "valveTest", valveTest
 	inputs.property "generatorTest", generatorTest
 	inputs.property "fireTest", fireTest
+	inputs.property "fluidOptimizationTest", fluidOptimizationTest
 	inputs.property 'shaderTest', shaderTest ?: ''
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+		if (fluidOptimizationTest) {
+			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"', '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FluidOptimizationServerTest"') }
+		}
 		if (shaderTest != null) {
 			filter { line -> line.replace('"mixins": [', '"mixins": [ { "config": "immersivefluids.shadow-test.mixins.json", "environment": "client" },') }
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysicsClient"',

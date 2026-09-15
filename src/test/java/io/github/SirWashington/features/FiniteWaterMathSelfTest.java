@@ -819,6 +819,7 @@ public final class FiniteWaterMathSelfTest {
     }
 
     private static void verifyFiniteWaterRespectsBlockFaces() {
+        verifyBarrierOptimizationParity();
         var air = Shapes.empty();
         var fullBlock = Shapes.block();
         var bottomSlabState = Blocks.OAK_SLAB.defaultBlockState();
@@ -916,6 +917,55 @@ public final class FiniteWaterMathSelfTest {
         if (blockedPlan != null) {
             throw new AssertionError("Piston pressure crossed a block face that stops water");
         }
+    }
+
+    private static void verifyBarrierOptimizationParity() {
+        var shapes = new java.util.ArrayList<net.minecraft.world.phys.shapes.VoxelShape>();
+        shapes.add(Shapes.empty());
+        shapes.add(Shapes.block());
+        for (var block : new net.minecraft.world.level.block.Block[]{Blocks.OAK_SLAB, Blocks.OAK_STAIRS, Blocks.OAK_TRAPDOOR}) {
+            for (var state : block.getStateDefinition().getPossibleStates()) {
+                shapes.add(state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
+            }
+        }
+        // Different block states often share the same geometry; exercise each shape only once.
+        shapes = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(shapes));
+        int checked = 0;
+        for (var from : shapes) {
+            for (var direction : Direction.values()) {
+                for (boolean ignores : new boolean[]{false, true}) {
+                    for (boolean extended : new boolean[]{false, true}) {
+                        var expected = direction.getAxis().isHorizontal()
+                            && (ignores || extended && originalBarrier(from, Shapes.empty(), direction) < 8)
+                            ? Shapes.empty() : from;
+                        var actual = FiniteWaterPhysics.outgoingFlowShape(from, direction, ignores, extended);
+                        if (Shapes.joinIsNotEmpty(expected, actual, net.minecraft.world.phys.shapes.BooleanOp.NOT_SAME)) {
+                            throw new AssertionError("Outflow geometry changed: " + direction);
+                        }
+                    }
+                }
+                for (var to : shapes) {
+                    if (FiniteWaterPhysics.flowBarrierLevel(from, to, direction) != originalBarrier(from, to, direction)) {
+                        throw new AssertionError("Barrier geometry changed: " + direction);
+                    }
+                    checked++;
+                }
+            }
+        }
+        System.out.println("FLUID_BARRIER_PARITY_PASS cases=" + checked);
+    }
+
+    private static int originalBarrier(net.minecraft.world.phys.shapes.VoxelShape from,
+            net.minecraft.world.phys.shapes.VoxelShape to, Direction direction) {
+        if (Shapes.mergedFaceOccludes(from, to, direction)) return 8;
+        if (direction.getAxis() == Direction.Axis.Y) return 0;
+        int barrier = 0;
+        for (int layer = 1; layer < 8; layer++) {
+            var mask = Shapes.box(0, layer / 8.0, 0, 1, 1, 1);
+            if (!Shapes.mergedFaceOccludes(Shapes.or(from, mask), to, direction)) break;
+            barrier = layer;
+        }
+        return barrier;
     }
 
     private static void verifyRaisedWaterloggedVisualLevels() {

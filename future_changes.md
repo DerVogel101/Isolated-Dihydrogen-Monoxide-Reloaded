@@ -1,4 +1,3 @@
 1. Rain
 2. Remove Herobrine
-3. Optimize Performance
-4. Own Creative tab
+3. Own Creative tab
