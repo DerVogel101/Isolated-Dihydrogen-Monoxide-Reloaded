@@ -65,7 +65,9 @@ public final class AntiRainGeneratorBlockEntity extends BlockEntity {
     }
 
     private void syncRegistration() {
-        BlockState state = level == null ? getBlockState() : level.getBlockState(worldPosition);
+        // The block state snapshot is authoritative here. Querying the world during chunk post-load
+        // re-enters ServerChunkCache for this same chunk and can deadlock its load.
+        BlockState state = getBlockState();
         boolean shouldRegister = level instanceof ServerLevel && !isRemoved()
                 && state.is(ModBlocks.ANTI_RAIN_GENERATOR)
                 && state.getValue(AntiRainGeneratorBlock.POWERED);

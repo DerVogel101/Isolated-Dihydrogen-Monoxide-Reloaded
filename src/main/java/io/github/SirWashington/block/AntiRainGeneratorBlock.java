@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.item.context.BlockPlaceContext;
 
 public final class AntiRainGeneratorBlock extends Block implements EntityBlock {
     public static final MapCodec<AntiRainGeneratorBlock> CODEC = simpleCodec(AntiRainGeneratorBlock::new);
@@ -24,6 +25,12 @@ public final class AntiRainGeneratorBlock extends Block implements EntityBlock {
     @Override
     public MapCodec<AntiRainGeneratorBlock> codec() {
         return CODEC;
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(POWERED,
+                context.getLevel().hasNeighborSignal(context.getClickedPos()));
     }
 
     @Override

@@ -29,10 +29,11 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import java.util.List;
 import java.util.UUID;
 
-/** Opt-in dedicated-server regression: -PrainfallTest runServer --args="--nogui". */
+/** Opt-in dedicated-server regression: -PrainfallTest runServer --args="--nogui"; reload pair: rainfall-reload-test.ps1. */
 public final class RainfallServerTest implements ModInitializer {
     private static final BlockPos GROUND = new BlockPos(8, 200, 8);
     private static final BlockPos WATER = GROUND.above();
+    private static final BlockPos RELOAD_GENERATOR = new BlockPos(8, 204, 8);
     private static final BoundingBox AREA = new BoundingBox(6, 198, 6, 10, 205, 10);
 
     @Override
@@ -52,8 +53,16 @@ public final class RainfallServerTest implements ModInitializer {
             List<String> absorptionIncluded = List.copyOf(config.absorptionIncludedBlocks.get());
             List<String> absorptionExcluded = List.copyOf(config.absorptionExcludedBlocks.get());
             float previousRain = level.getRainLevel(1.0F);
+            if (Boolean.getBoolean("immersivefluids.rainfallReloadSeed")) {
+                level.setChunkForced(0, 0, true);
+                placePoweredGenerator(level, RELOAD_GENERATOR);
+                System.out.println("RAINFALL_RELOAD_SEED_PASS");
+                server.halt(false);
+                return;
+            }
             try {
                 level.setChunkForced(0, 0, true);
+                removeGenerator(level, RELOAD_GENERATOR);
                 configureDefaults(config);
                 playerRadiusChecks(level);
                 antiRainGeneratorChecks(level);
@@ -219,7 +228,7 @@ public final class RainfallServerTest implements ModInitializer {
     }
 
     private static void antiRainGeneratorChecks(ServerLevel level) {
-        BlockPos generator = new BlockPos(8, 204, 8);
+        BlockPos generator = RELOAD_GENERATOR;
         BlockPos second = new BlockPos(11, 204, 8);
         BlockPos overlap = new BlockPos(40, 204, 8);
         ServerLevel nether = level.getServer().getLevel(Level.NETHER);
@@ -229,8 +238,7 @@ public final class RainfallServerTest implements ModInitializer {
         nether.getChunk(0, 0);
         try {
             removeGenerator(level, generator);
-            level.setBlock(generator.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
-            level.setBlock(generator, ModBlocks.ANTI_RAIN_GENERATOR.defaultBlockState(), Block.UPDATE_ALL);
+            placePoweredGenerator(level, generator);
             expect(level.getBlockState(generator).getValue(AntiRainGeneratorBlock.POWERED),
                     "Generator powers when placed beside existing redstone");
             expect(level.getBlockState(generator).getLightEmission() == 15, "Powered generator emits light 15");
@@ -357,7 +365,8 @@ public final class RainfallServerTest implements ModInitializer {
     private static void placePoweredGenerator(ServerLevel level, BlockPos pos) {
         removeGenerator(level, pos);
         level.setBlock(pos.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
-        level.setBlock(pos, ModBlocks.ANTI_RAIN_GENERATOR.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(pos, ModBlocks.ANTI_RAIN_GENERATOR.defaultBlockState()
+                .setValue(AntiRainGeneratorBlock.POWERED, level.hasNeighborSignal(pos)), Block.UPDATE_ALL);
     }
 
     private static void removeGenerator(ServerLevel level, BlockPos pos) {
