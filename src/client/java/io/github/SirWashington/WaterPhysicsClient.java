@@ -1,12 +1,16 @@
 package io.github.SirWashington;
 
+import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockColorRegistry;
 import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry;
 import net.minecraft.client.color.block.BlockTintSources;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
+
+import java.util.List;
 
 public class WaterPhysicsClient implements ClientModInitializer {
     @Override
@@ -17,6 +21,7 @@ public class WaterPhysicsClient implements ClientModInitializer {
                 io.github.SirWashington.block.WaterValveBlockEntity.TYPE, WaterValveRenderer::new);
         MachineryFrameModel.initialize();
         FrozenWaterloggedModel.initialize();
+        BlockColorRegistry.register(List.of(BlockTintSources.water()), ModBlocks.ANTI_RAIN_GENERATOR);
         FluidRenderingRegistry.register(
                 ModFluids.FINITE_WATER,
                 ModFluids.FLOWING_FINITE_WATER,

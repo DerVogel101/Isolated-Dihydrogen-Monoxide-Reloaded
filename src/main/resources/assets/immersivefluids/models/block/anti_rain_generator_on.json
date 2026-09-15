@@ -1,0 +1,6 @@
+{
+  "parent": "immersivefluids:block/anti_rain_generator_off",
+  "textures": {
+    "beacon": "immersivefluids:block/beacon"
+  }
+}

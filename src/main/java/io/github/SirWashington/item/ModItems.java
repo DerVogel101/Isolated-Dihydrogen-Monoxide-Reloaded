@@ -36,6 +36,9 @@ public class ModItems {
     public static final Item RAIN_SENSOR = register(ModItemIds.RAIN_SENSOR,
             properties -> new BlockItem(ModBlocks.RAIN_SENSOR, properties),
             new Item.Properties().useBlockDescriptionPrefix());
+    public static final Item ANTI_RAIN_GENERATOR = register(ModItemIds.ANTI_RAIN_GENERATOR,
+            properties -> new BlockItem(ModBlocks.ANTI_RAIN_GENERATOR, properties),
+            new Item.Properties().useBlockDescriptionPrefix());
 
     public static final Item PRECISION_BUCKET = register(
             ModItemIds.PRECISION_BUCKET,
@@ -77,6 +80,7 @@ public class ModItems {
                             output.accept(INSULATOR_SHARD);
                             output.accept(FINITE_ICE);
                             output.accept(RAIN_SENSOR);
+                            output.accept(ANTI_RAIN_GENERATOR);
                             output.accept(PRECISION_BUCKET);
                             output.accept(FINITE_WATER_BUCKET);
                         })
@@ -90,6 +94,7 @@ public class ModItems {
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries -> {
             entries.accept(WATER_PUMP); entries.accept(MUTED_WATER_PUMP); entries.accept(WATER_VALVE);
             entries.accept(DIHYDROGEN_MONOXIDE_ASSEMBLER); entries.accept(MUTED_DIHYDROGEN_MONOXIDE_ASSEMBLER);
+            entries.accept(ANTI_RAIN_GENERATOR);
         });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(entries -> entries.accept(FINITE_ICE));
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.REDSTONE_BLOCKS).register(entries ->

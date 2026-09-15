@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class IrisMaterials {
     // Private dispatch markers, NOT shader material IDs. Source validation checks for collisions.
     public static final int MACHINERY = 29990, ITEM = 29991, ICE_ITEM = 29992;
+    public static final int ANTI_RAIN_ON = 29994, ANTI_RAIN_OFF = 29996;
     /** The integrated-material adapter only; general water/ice support does not depend on it. */
     public static volatile boolean supported;
     private IrisMaterials() { }
@@ -45,8 +46,15 @@ public final class IrisMaterials {
         boolean ice = FrozenWaterloggedBlocks.isFrozen(state)
                 && sprite.contents().name().equals(Identifier.withDefaultNamespace("block/ice"));
         if (!own && !ice) return original;
+        Identifier texture = sprite.contents().name();
+        if (supported && state.is(ModBlocks.ANTI_RAIN_GENERATOR)) {
+            if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon")))
+                return ANTI_RAIN_ON;
+            if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon_off")))
+                return ANTI_RAIN_OFF;
+        }
         if (supported && original == MACHINERY && sprite != null
-                && sprite.contents().name().equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/machinery_iron")))
+                && texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/machinery_iron")))
             return MACHINERY;
         // Explicit shader support for a mod block takes precedence over our fallback.
         var ids = WorldRenderingSettings.INSTANCE.getBlockStateIds();
@@ -74,7 +82,10 @@ public final class IrisMaterials {
     }
 
     public static int itemSurface(TextureAtlasSprite sprite) {
-        if (sprite.contents().name().equals(Identifier.withDefaultNamespace("block/ice"))) return ICE_ITEM;
+        Identifier texture = sprite.contents().name();
+        if (texture.equals(Identifier.withDefaultNamespace("block/ice"))) return ICE_ITEM;
+        if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon"))) return ANTI_RAIN_ON;
+        if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon_off"))) return ANTI_RAIN_OFF;
         return surface(sprite, 0);
     }
 

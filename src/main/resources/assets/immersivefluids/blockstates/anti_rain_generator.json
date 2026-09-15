@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "powered=false": { "model": "immersivefluids:block/anti_rain_generator_off" },
+    "powered=true": { "model": "immersivefluids:block/anti_rain_generator_on" }
+  }
+}

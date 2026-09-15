@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["#R#", "WCW", "#B#"],
+  "key": {
+    "#": "immersivefluids:insulator_shard",
+    "R": "immersivefluids:rain_sensor",
+    "W": "immersivefluids:water_pump",
+    "C": "minecraft:conduit",
+    "B": "minecraft:beacon"
+  },
+  "result": { "id": "immersivefluids:anti_rain_generator" }
+}

@@ -23,6 +23,8 @@ public final class ModBlockIds {
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "layered_finite_ice"));
     public static final ResourceKey<Block> RAIN_SENSOR = ResourceKey.create(
             Registries.BLOCK, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "rain_sensor"));
+    public static final ResourceKey<Block> ANTI_RAIN_GENERATOR = ResourceKey.create(
+            Registries.BLOCK, Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "anti_rain_generator"));
     public static final ResourceKey<Block> FINITE_WATER = ResourceKey.create(
             Registries.BLOCK,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "finite_water")

@@ -22,6 +22,7 @@ public class WaterPhysics implements ModInitializer {
         ModBlocks.initialize();
         io.github.SirWashington.block.WaterPumpBlockEntity.initialize();
         io.github.SirWashington.block.WaterValveBlockEntity.initialize();
+        io.github.SirWashington.block.AntiRainGeneratorBlockEntity.initialize();
         ModItems.initialize();
         FiniteWaterPhysics.initialize();
         io.github.SirWashington.features.FrozenWaterloggedBlocks.initialize();

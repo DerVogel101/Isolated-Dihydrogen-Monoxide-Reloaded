@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "immersivefluids:block/anti_rain_generator_off",
+    "tints": [
+      { "type": "minecraft:constant", "value": -12618012 }
+    ]
+  }
+}

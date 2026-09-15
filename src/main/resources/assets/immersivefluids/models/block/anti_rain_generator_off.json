@@ -1,0 +1,79 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "beacon": "immersivefluids:block/beacon_off",
+    "water": { "sprite": "minecraft:block/water_still", "force_translucent": true },
+    "glass": { "sprite": "minecraft:block/glass", "force_translucent": true },
+    "crying_obsidian": "minecraft:block/crying_obsidian",
+    "conduit": "minecraft:block/conduit",
+    "particle": "minecraft:block/conduit"
+  },
+  "elements": [
+    {
+      "name": "Glass shell",
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "north": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "east": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "south": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "west": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "up": { "uv": [0, 0, 16, 16], "texture": "#glass" },
+        "down": { "uv": [0, 0, 16, 16], "texture": "#glass" }
+      }
+    },
+    {
+      "name": "Crying obsidian base",
+      "from": [2, 0.1, 2],
+      "to": [14, 3, 14],
+      "faces": {
+        "north": { "uv": [2, 13, 14, 16], "texture": "#crying_obsidian" },
+        "east": { "uv": [2, 13, 14, 16], "texture": "#crying_obsidian" },
+        "south": { "uv": [2, 13, 14, 16], "texture": "#crying_obsidian" },
+        "west": { "uv": [2, 13, 14, 16], "texture": "#crying_obsidian" },
+        "up": { "uv": [2, 2, 14, 14], "texture": "#crying_obsidian" },
+        "down": { "uv": [2, 2, 14, 14], "texture": "#crying_obsidian" }
+      }
+    },
+    {
+      "name": "Conduit core",
+      "from": [5, 8.9, 5],
+      "to": [11, 14.9, 11],
+      "faces": {
+        "north": { "uv": [2, 8, 8, 14], "texture": "#conduit" },
+        "east": { "uv": [2, 2, 8, 8], "texture": "#conduit" },
+        "south": { "uv": [8, 8, 14, 14], "texture": "#conduit" },
+        "west": { "uv": [2, 2, 8, 8], "texture": "#conduit" },
+        "up": { "uv": [14, 8, 8, 2], "texture": "#conduit" },
+        "down": { "uv": [14, 2, 8, 8], "texture": "#conduit" }
+      }
+    },
+    {
+      "name": "Beacon core",
+      "from": [3, 3, 3],
+      "to": [13, 12.5, 13],
+      "faces": {
+        "north": { "uv": [3, 3, 13, 12.5], "texture": "#beacon" },
+        "east": { "uv": [3, 3, 13, 12.5], "texture": "#beacon" },
+        "south": { "uv": [3, 3, 13, 12.5], "texture": "#beacon" },
+        "west": { "uv": [3, 3, 13, 12.5], "texture": "#beacon" },
+        "up": { "uv": [3, 3, 13, 13], "texture": "#beacon" },
+        "down": { "uv": [3, 3, 13, 13], "texture": "#beacon" }
+      }
+    },
+    {
+      "name": "Water",
+      "from": [1, 0.15, 1],
+      "to": [15, 15, 15],
+      "faces": {
+        "north": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 },
+        "east": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 },
+        "south": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 },
+        "west": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 },
+        "up": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 },
+        "down": { "uv": [0, 0, 16, 16], "texture": "#water", "tintindex": 0 }
+      }
+    }
+  ]
+}

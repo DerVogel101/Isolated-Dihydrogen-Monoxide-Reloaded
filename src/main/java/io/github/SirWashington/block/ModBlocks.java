@@ -35,6 +35,13 @@ public final class ModBlocks {
             new RainSensorBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
                     .strength(1.5F).noOcclusion().setId(ModBlockIds.RAIN_SENSOR))
     );
+    public static final Block ANTI_RAIN_GENERATOR = Registry.register(
+            BuiltInRegistries.BLOCK, ModBlockIds.ANTI_RAIN_GENERATOR,
+            new AntiRainGeneratorBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.BEACON)
+                    .noOcclusion()
+                    .lightLevel(state -> state.getValue(AntiRainGeneratorBlock.POWERED) ? 15 : 2)
+                    .setId(ModBlockIds.ANTI_RAIN_GENERATOR))
+    );
     public static final Block FINITE_WATER = Registry.register(
             BuiltInRegistries.BLOCK,
             ModBlockIds.FINITE_WATER,

@@ -2,7 +2,10 @@ package io.github.SirWashington.features;
 
 import com.mojang.authlib.GameProfile;
 import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.block.AntiRainGeneratorBlock;
+import io.github.SirWashington.block.AntiRainGeneratorBlockEntity;
 import io.github.SirWashington.block.ModBlockTags;
+import io.github.SirWashington.block.ModBlocks;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
@@ -15,10 +18,12 @@ import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 import java.util.List;
@@ -51,6 +56,7 @@ public final class RainfallServerTest implements ModInitializer {
                 level.setChunkForced(0, 0, true);
                 configureDefaults(config);
                 playerRadiusChecks(level);
+                antiRainGeneratorChecks(level);
                 selectorChecks(level);
                 rainChecks(level);
                 dryingChecks(level);
@@ -212,6 +218,153 @@ public final class RainfallServerTest implements ModInitializer {
         player.setPos(chunkX * 16 + 8.5D, GROUND.getY() + 1.0D, chunkZ * 16 + 8.5D);
     }
 
+    private static void antiRainGeneratorChecks(ServerLevel level) {
+        BlockPos generator = new BlockPos(8, 204, 8);
+        BlockPos second = new BlockPos(11, 204, 8);
+        BlockPos overlap = new BlockPos(40, 204, 8);
+        ServerLevel nether = level.getServer().getLevel(Level.NETHER);
+        expect(nether != null, "Nether available for dimension isolation check");
+        forceTestChunks(level, true);
+        nether.setChunkForced(0, 0, true);
+        nether.getChunk(0, 0);
+        try {
+            removeGenerator(level, generator);
+            level.setBlock(generator.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+            level.setBlock(generator, ModBlocks.ANTI_RAIN_GENERATOR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(level.getBlockState(generator).getValue(AntiRainGeneratorBlock.POWERED),
+                    "Generator powers when placed beside existing redstone");
+            expect(level.getBlockState(generator).getLightEmission() == 15, "Powered generator emits light 15");
+            expect(level.getBlockEntity(generator) instanceof AntiRainGeneratorBlockEntity,
+                    "Generator creates its tracking block entity");
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, generator),
+                    "Powered generator registers its protected chunks");
+
+            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+                BlockPos ground = groundInChunk(x, z);
+                prepareTarget(level, ground, Blocks.STONE);
+                expect(!rain(level, ground, 0.0D), "Protected 3x3 chunk rejects rain: " + x + "," + z);
+                expectLevel(level, ground.above(), 0, "Protected chunk stays dry");
+                clearTarget(level, ground);
+            }
+            for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+                if (Math.max(Math.abs(x), Math.abs(z)) != 2) continue;
+                BlockPos ground = groundInChunk(x, z);
+                prepareTarget(level, ground, Blocks.STONE);
+                expect(rain(level, ground, 0.0D), "Chunk two away remains eligible: " + x + "," + z);
+                clearTarget(level, ground);
+            }
+
+            BlockPos target = groundInChunk(0, 0);
+            prepareTarget(level, target, Blocks.GRASS_BLOCK);
+            FiniteWaterPhysics.setWaterLevel(level, target.above(), 1);
+            expect(rain(level, target.above(), 0.125D), "Protection leaves rain absorption unchanged");
+            prepareTarget(level, target, Blocks.STONE);
+            FiniteWaterPhysics.setWaterLevel(level, target.above(), 1);
+            expect(FiniteWaterRainfall.tick(level, target.above(), 0.0D, Biome.Precipitation.NONE, true),
+                    "Protection leaves daytime drying unchanged");
+            prepareTarget(level, target, Blocks.GRASS_BLOCK);
+            FiniteWaterPhysics.setWaterLevel(level, target.above(), 1);
+            expect(FiniteWaterRainfall.tick(level, target.above(), 0.0D, Biome.Precipitation.NONE, false),
+                    "Protection leaves nighttime absorption unchanged");
+            clearTarget(level, target);
+
+            level.setBlock(generator.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(!level.getBlockState(generator).getValue(AntiRainGeneratorBlock.POWERED),
+                    "Redstone removal unpowers generator immediately");
+            expect(level.getBlockState(generator).getLightEmission() == 2, "Unpowered generator emits light 2");
+            prepareTarget(level, target, Blocks.STONE);
+            expect(rain(level, target, 0.0D), "Unpowered generator does not protect");
+            clearTarget(level, target);
+
+            level.setBlock(generator.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, target),
+                    "Redstone addition enables protection immediately");
+            placePoweredGenerator(level, second);
+            level.setBlock(generator.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, target),
+                    "Second generator in one chunk retains reference count");
+            level.setBlock(second.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, target),
+                    "Last generator in one chunk releases reference count");
+
+            level.setBlock(generator.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+            placePoweredGenerator(level, overlap);
+            BlockPos shared = groundInChunk(1, 0);
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, shared), "Overlapping coverage protects shared chunk");
+            level.setBlock(generator.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, shared),
+                    "Overlapping generator retains shared chunk after one unpowers");
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, target),
+                    "Unpowered generator releases its non-overlapping chunk");
+            level.setBlock(overlap.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, shared),
+                    "Last overlapping generator releases shared chunk");
+
+            level.setBlock(generator.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+            LevelChunk chunk = level.getChunkAt(generator);
+            chunk.clearAllBlockEntities();
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, target), "Chunk unload removes protection");
+            expect(chunk.getBlockEntity(generator, LevelChunk.EntityCreationType.IMMEDIATE)
+                            instanceof AntiRainGeneratorBlockEntity,
+                    "Chunk reload recreates generator block entity");
+            expect(AntiRainGeneratorBlockEntity.blocksRain(level, target), "Chunk reload restores protection");
+
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(nether, target), "Dimensions have isolated coverage");
+            placePoweredGenerator(nether, generator);
+            expect(AntiRainGeneratorBlockEntity.blocksRain(nether, target), "Nether generator protects only Nether");
+            removeGenerator(level, generator);
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, target), "Block removal releases protection");
+            expect(AntiRainGeneratorBlockEntity.blocksRain(nether, target),
+                    "Overworld removal leaves Nether coverage intact");
+        } finally {
+            removeGenerator(level, generator);
+            removeGenerator(level, second);
+            removeGenerator(level, overlap);
+            removeGenerator(nether, generator);
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(level, GROUND),
+                    "Generator test cleanup leaves no Overworld protection");
+            expect(!AntiRainGeneratorBlockEntity.blocksRain(nether, GROUND),
+                    "Generator test cleanup leaves no Nether protection");
+            clearTarget(level, groundInChunk(0, 0));
+            forceTestChunks(level, false);
+            nether.setChunkForced(0, 0, false);
+            configureDefaults(WaterPhysicsConfig.SERVER.rainfall);
+        }
+    }
+
+    private static void forceTestChunks(ServerLevel level, boolean forced) {
+        for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+            if (x == 0 && z == 0) continue;
+            level.setChunkForced(x, z, forced);
+            if (forced) level.getChunk(x, z);
+        }
+    }
+
+    private static BlockPos groundInChunk(int chunkX, int chunkZ) {
+        return new BlockPos(chunkX * 16 + 1, GROUND.getY(), chunkZ * 16 + 1);
+    }
+
+    private static void prepareTarget(ServerLevel level, BlockPos ground, Block block) {
+        clearTarget(level, ground);
+        level.setBlock(ground, block.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
+    private static void clearTarget(ServerLevel level, BlockPos ground) {
+        level.setBlock(ground.above(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(ground, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
+    private static void placePoweredGenerator(ServerLevel level, BlockPos pos) {
+        removeGenerator(level, pos);
+        level.setBlock(pos.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(pos, ModBlocks.ANTI_RAIN_GENERATOR.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
+    private static void removeGenerator(ServerLevel level, BlockPos pos) {
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(pos.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
     private static void selectorChecks(ServerLevel level) {
         expect(ModBlockTags.matchesSelector(Blocks.STONE.defaultBlockState(), "minecraft:stone"), "Exact selector");
         expect(ModBlockTags.matchesSelector(Blocks.STONE.defaultBlockState(), "@minecraft"), "Mod selector");
@@ -370,16 +523,28 @@ public final class RainfallServerTest implements ModInitializer {
     }
 
     private static void weatherBoundaryChecks(ServerLevel level) {
+        level.getServer().getCommands().performPrefixedCommand(
+                level.getServer().createCommandSourceStack(), "weather rain");
         fixture(level, Blocks.STONE);
         biome(level, "plains");
         level.setRainLevel(1.0F);
-        expect(FiniteWaterRainfall.tick(level, GROUND, 0.0D), "Exposed plains rain");
+        Biome.Precipitation rain = level.getBiome(WATER).value()
+                .getPrecipitationAt(WATER, level.getSeaLevel());
+        expect(level.isRaining(), "Weather command enables rain");
+        expect(rain == Biome.Precipitation.RAIN, "Plains biome produces rain");
+        expect(!AntiRainGeneratorBlockEntity.blocksRain(level, WATER),
+                "Removed generator does not suppress later rainfall checks");
+        expect(FiniteWaterRainfall.tick(level, GROUND, 0.0D, rain, true), "Exposed plains rain");
 
         fixture(level, Blocks.STONE);
         biome(level, "snowy_plains");
         level.setRainLevel(1.0F);
         FiniteWaterPhysics.setWaterLevel(level, WATER, 2);
-        expect(!FiniteWaterRainfall.tick(level, WATER, 0.0D), "Snow does not run rainfall logic");
+        Biome.Precipitation snow = level.getBiome(WATER).value()
+                .getPrecipitationAt(WATER, level.getSeaLevel());
+        expect(snow == Biome.Precipitation.SNOW,
+                "Snowy biome produces snow: " + snow + " in " + level.getBiome(WATER).unwrapKey());
+        expect(!FiniteWaterRainfall.tick(level, WATER, 0.0D, snow, true), "Snow does not run rainfall logic");
         expectLevel(level, WATER, 2, "Snow preserves liquid for freezing hook");
         level.setBlock(WATER.above(), Blocks.OAK_LEAVES.defaultBlockState(), Block.UPDATE_ALL);
         WaterPhysicsConfig.SERVER.rainfall.rainChangeChance.set(1.0D);
@@ -392,16 +557,20 @@ public final class RainfallServerTest implements ModInitializer {
         fixture(level, Blocks.STONE);
         biome(level, "desert");
         level.setRainLevel(1.0F);
-        expect(level.precipitationAt(WATER) == Biome.Precipitation.NONE, "Desert has no precipitation");
-        expect(!FiniteWaterRainfall.tick(level, GROUND, 0.0D), "Desert does not collect rain");
+        Biome.Precipitation dry = level.getBiome(WATER).value()
+                .getPrecipitationAt(WATER, level.getSeaLevel());
+        expect(dry == Biome.Precipitation.NONE, "Desert has no precipitation");
+        expect(!FiniteWaterRainfall.tick(level, GROUND, 0.0D, dry, true), "Desert does not collect rain");
 
         fixture(level, Blocks.STONE);
         biome(level, "plains");
-        level.setRainLevel(0.0F);
+        level.setRainLevel(1.0F);
         FiniteWaterPhysics.setWaterLevel(level, WATER, 2);
         level.setBlock(WATER.above(2), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         level.tickPrecipitation(GROUND);
         expectLevel(level, WATER, 2, "Roof protects shallow installation");
+        level.getServer().getCommands().performPrefixedCommand(
+                level.getServer().createCommandSourceStack(), "weather clear");
     }
 
     private static void hostChecks(ServerLevel level) {

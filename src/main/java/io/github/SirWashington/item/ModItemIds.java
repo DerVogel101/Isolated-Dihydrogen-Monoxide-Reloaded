@@ -17,6 +17,7 @@ public final class ModItemIds {
     public static final ResourceKey<Item> INSULATOR_SHARD = create("insulator_shard");
     public static final ResourceKey<Item> FINITE_ICE = create("finite_ice");
     public static final ResourceKey<Item> RAIN_SENSOR = create("rain_sensor");
+    public static final ResourceKey<Item> ANTI_RAIN_GENERATOR = create("anti_rain_generator");
     public static final ResourceKey<Item> PRECISION_BUCKET = create("precision_bucket");
     public static final ResourceKey<Item> FINITE_WATER_BUCKET = create("finite_water_bucket");
 

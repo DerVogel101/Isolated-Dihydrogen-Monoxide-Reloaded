@@ -1,6 +1,7 @@
 package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.block.AntiRainGeneratorBlockEntity;
 import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.fluid.ModFluids;
 import net.minecraft.core.BlockPos;
@@ -69,6 +70,7 @@ public final class FiniteWaterRainfall {
                 return amount < MAX_RAIN_LEVEL
                         && WaterPhysicsConfig.isRainCollectionSurface(selectorState)
                         && changeAllowed(level, surface, true)
+                        && !AntiRainGeneratorBlockEntity.blocksRain(level, target)
                         && setLevel(level, target, amount + 1);
             }
             if (roll < rainChance * 2.0D) {
