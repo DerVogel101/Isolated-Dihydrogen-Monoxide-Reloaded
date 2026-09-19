@@ -1,5 +1,6 @@
 package io.github.SirWashington.compat.iris;
 
+import io.github.SirWashington.block.AntiRainGeneratorBlock;
 import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.features.FrozenWaterloggedBlocks;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -42,24 +43,66 @@ public final class IrisMaterials {
 
     public static int blockSurface(BlockState state, TextureAtlasSprite sprite, int original) {
         if (!active() || sprite == null) return original;
-        boolean own = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals("immersivefluids");
+
+        boolean own = BuiltInRegistries.BLOCK.getKey(state.getBlock())
+                .getNamespace()
+                .equals("immersivefluids");
+
         boolean ice = FrozenWaterloggedBlocks.isFrozen(state)
-                && sprite.contents().name().equals(Identifier.withDefaultNamespace("block/ice"));
+                && sprite.contents().name().equals(
+                Identifier.withDefaultNamespace("block/ice"));
+
         if (!own && !ice) return original;
+
         Identifier texture = sprite.contents().name();
+
         if (supported && state.is(ModBlocks.ANTI_RAIN_GENERATOR)) {
-            if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon")))
-                return ANTI_RAIN_ON;
-            if (texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/beacon_off")))
-                return ANTI_RAIN_OFF;
+            boolean core = texture.equals(
+                    Identifier.fromNamespaceAndPath(
+                            "immersivefluids",
+                            "block/beacon"
+                    )
+            ) || texture.equals(
+                    Identifier.fromNamespaceAndPath(
+                            "immersivefluids",
+                            "block/beacon_off"
+                    )
+            );
+
+            boolean glass = texture.equals(
+                    Identifier.withDefaultNamespace("block/glass")
+            );
+
+            if (core || glass) {
+                return state.getValue(AntiRainGeneratorBlock.POWERED)
+                        ? ANTI_RAIN_ON
+                        : ANTI_RAIN_OFF;
+            }
         }
-        if (supported && original == MACHINERY && sprite != null
-                && texture.equals(Identifier.fromNamespaceAndPath("immersivefluids", "block/machinery_iron")))
+
+        if (supported
+                && original == MACHINERY
+                && texture.equals(
+                Identifier.fromNamespaceAndPath(
+                        "immersivefluids",
+                        "block/machinery_iron"
+                )
+        )) {
             return MACHINERY;
+        }
+
         // Explicit shader support for a mod block takes precedence over our fallback.
         var ids = WorldRenderingSettings.INSTANCE.getBlockStateIds();
-        if (own && ids != null && ids.containsKey(state) && original != MACHINERY
-                && state.getBlock() != ModBlocks.FINITE_ICE && state.getBlock() != ModBlocks.LAYERED_FINITE_ICE) return original;
+
+        if (own
+                && ids != null
+                && ids.containsKey(state)
+                && original != MACHINERY
+                && state.getBlock() != ModBlocks.FINITE_ICE
+                && state.getBlock() != ModBlocks.LAYERED_FINITE_ICE) {
+            return original;
+        }
+
         return surface(sprite, original);
     }
 

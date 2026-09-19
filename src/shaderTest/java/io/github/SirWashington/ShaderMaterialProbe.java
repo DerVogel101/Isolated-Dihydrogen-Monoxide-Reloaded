@@ -1,5 +1,6 @@
 package io.github.SirWashington;
 
+import io.github.SirWashington.block.AntiRainGeneratorBlock;
 import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.compat.iris.IrisMaterials;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -94,25 +95,119 @@ final class ShaderMaterialProbe {
         var ice = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
                 net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
                 net.minecraft.resources.Identifier.withDefaultNamespace("block/ice")));
+
         var iron = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
                 net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
                 net.minecraft.resources.Identifier.withDefaultNamespace("block/iron_block")));
+
+        var glass = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
+                net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
+                net.minecraft.resources.Identifier.withDefaultNamespace("block/glass")));
+
+        var antiRainOn = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
+                net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
+                net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                        WaterPhysics.MODID,
+                        "block/beacon")));
+
+        var antiRainOff = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
+                net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
+                net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                        WaterPhysics.MODID,
+                        "block/beacon_off")));
+
         var machineryIron = atlas.get(new net.minecraft.client.resources.model.sprite.SpriteId(
                 net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
-                net.minecraft.resources.Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "block/machinery_iron")));
+                net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                        WaterPhysics.MODID,
+                        "block/machinery_iron")));
+
         if (IrisMaterials.supported) {
-            expect(IrisMaterials.blockSurface(ModBlocks.WATER_PUMP.defaultBlockState(), machineryIron, IrisMaterials.MACHINERY)
-                    == IrisMaterials.MACHINERY, "Static machinery retains untinted integrated-material dispatch");
-            expect(IrisMaterials.blockSurface(ModBlocks.WATER_PUMP.defaultBlockState(), machineryIron, 77)
-                    == 77, "Explicit shader machinery mapping takes precedence");
+            expect(
+                    IrisMaterials.blockSurface(
+                            ModBlocks.WATER_PUMP.defaultBlockState(),
+                            machineryIron,
+                            IrisMaterials.MACHINERY)
+                            == IrisMaterials.MACHINERY,
+                    "Static machinery retains untinted integrated-material dispatch");
+
+            expect(
+                    IrisMaterials.blockSurface(
+                            ModBlocks.WATER_PUMP.defaultBlockState(),
+                            machineryIron,
+                            77)
+                            == 77,
+                    "Explicit shader machinery mapping takes precedence");
+
+            var antiRainUnpowered = ModBlocks.ANTI_RAIN_GENERATOR
+                    .defaultBlockState()
+                    .setValue(AntiRainGeneratorBlock.POWERED, false);
+
+            var antiRainPowered = ModBlocks.ANTI_RAIN_GENERATOR
+                    .defaultBlockState()
+                    .setValue(AntiRainGeneratorBlock.POWERED, true);
+
+            expect(
+                    IrisMaterials.blockSurface(
+                            antiRainPowered,
+                            antiRainOn,
+                            77)
+                            == IrisMaterials.ANTI_RAIN_ON,
+                    "Powered anti-rain core gets powered ACT identity");
+
+            expect(
+                    IrisMaterials.blockSurface(
+                            antiRainPowered,
+                            glass,
+                            77)
+                            == IrisMaterials.ANTI_RAIN_ON,
+                    "Powered anti-rain glass retains ACT light identity");
+
+            expect(
+                    IrisMaterials.blockSurface(
+                            antiRainUnpowered,
+                            antiRainOff,
+                            77)
+                            == IrisMaterials.ANTI_RAIN_OFF,
+                    "Unpowered anti-rain core gets idle ACT identity");
+
+            expect(
+                    IrisMaterials.blockSurface(
+                            antiRainUnpowered,
+                            glass,
+                            77)
+                            == IrisMaterials.ANTI_RAIN_OFF,
+                    "Unpowered anti-rain glass retains ACT light identity");
         }
+
         var host = Blocks.CHEST.defaultBlockState()
-                .setValue(io.github.SirWashington.features.FiniteWaterloggedPlants.LEVEL, 8)
-                .setValue(io.github.SirWashington.features.FrozenWaterloggedBlocks.FROZEN,
+                .setValue(
+                        io.github.SirWashington.features.FiniteWaterloggedPlants.LEVEL,
+                        8)
+                .setValue(
+                        io.github.SirWashington.features.FrozenWaterloggedBlocks.FROZEN,
                         io.github.SirWashington.features.FrozenWaterloggedBlocks.Phase.ALL);
-        expect(IrisMaterials.blockSurface(host, ice, 88) == ids.getInt(Blocks.ICE.defaultBlockState()), "Frozen overlay gets ice");
-        expect(IrisMaterials.blockSurface(host, iron, 88) == 88, "Frozen host retains its own material");
-        expect(IrisMaterials.blockSurface(Blocks.IRON_BLOCK.defaultBlockState(), ice, 88) == 88, "Unrelated blocks not remapped");
+
+        expect(
+                IrisMaterials.blockSurface(
+                        host,
+                        ice,
+                        88)
+                        == ids.getInt(Blocks.ICE.defaultBlockState()),
+                "Frozen overlay gets ice");
+
+        expect(
+                IrisMaterials.blockSurface(host, iron, 88) == 88,
+                "Frozen host retains its own material");
+
+        expect(
+                IrisMaterials.blockSurface(
+                        Blocks.IRON_BLOCK.defaultBlockState(),
+                        ice,
+                        88)
+                        == 88,
+                "Unrelated blocks not remapped");
+
         System.out.println("SHADER_ACTIVE_SURFACES_PASS");
     }
     static void toggle(boolean enabled) {

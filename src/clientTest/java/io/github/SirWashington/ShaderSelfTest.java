@@ -69,8 +69,8 @@ public final class ShaderSelfTest {
         String colorsPath = replacements.containsKey(ShaderSourcePatch.BLOCKLIGHT_COLORS)
                 ? ShaderSourcePatch.BLOCKLIGHT_COLORS : ShaderSourcePatch.BLOCKLIGHT_COLORS_ACT;
         String colors = replacements.get(colorsPath);
-        expect(colors.contains("mat == 98") && colors.contains("0.61, 1.95, 6.0")
-                        && colors.contains("mat == 99") && colors.contains("4.0, 4.0, 4.0"),
+        expect(colors.contains("mat == 98") && colors.contains("0.3, 1.0, 8.0, 2.0")
+                        && colors.contains("mat == 99") && colors.contains("3.8, 4.0, 4.3, 0.2"),
                 "Deep-blue and neutral-grey colored light");
         sources.put(ShaderSourcePatch.BLOCK_PROGRAM, sources.get(ShaderSourcePatch.BLOCK_PROGRAM) + "\n// unknown revision");
         expect(ShaderSourcePatch.replacements(sources).size() == 5, "Unrelated revision changes remain supported");
