@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -29,9 +30,7 @@ import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -265,7 +264,7 @@ public final class FiniteWaterPhysics {
             openPressurizedDoor(level, pos);
         }
 
-        if (disappearsOnVanillaFluidContact(level, pos, center)) {
+        if (disappearsOnForeignFluidContact(level, pos, center)) {
             return;
         }
 
@@ -342,8 +341,8 @@ public final class FiniteWaterPhysics {
                 && levelAt.applyAsInt(lowerOutside.above()) >= requiredLevel;
     }
 
-    private static boolean disappearsOnVanillaFluidContact(ServerLevel level, BlockPos pos, int waterLevel) {
-        boolean touchesWater = false;
+    private static boolean disappearsOnForeignFluidContact(ServerLevel level, BlockPos pos, int waterLevel) {
+        boolean touchesForeignFluid = false;
         BlockState sourceState = level.getBlockState(pos);
         for (Direction direction : Direction.values()) {
             BlockPos neighbor = pos.relative(direction);
@@ -351,23 +350,23 @@ public final class FiniteWaterPhysics {
                 continue;
             }
             BlockState neighborState = level.getBlockState(neighbor);
-            Fluid fluid = neighborState.getFluidState().getType();
-            if (!isVanillaWater(fluid) && !isVanillaLava(fluid)) {
+            FluidState fluidState = neighborState.getFluidState();
+            if (!isForeignFluid(fluidState)) {
                 continue;
             }
             boolean ordinaryContact = sourceState.is(ModBlocks.FINITE_WATER)
-                && (neighborState.is(Blocks.WATER) || neighborState.is(Blocks.LAVA));
+                    && neighborState.is(fluidState.createLegacyBlock().getBlock());
             if (!ordinaryContact && !canFlowBetween(level, pos, neighbor, waterLevel)) {
                 continue;
             }
-            if (isVanillaLava(fluid)) {
+            if (fluidState.is(FluidTags.LAVA)) {
                 playVanishingEffect(level, pos);
                 setWaterLevel(level, pos, 0);
                 return true;
             }
-            touchesWater |= isVanillaWater(fluid);
+            touchesForeignFluid = true;
         }
-        if (touchesWater) {
+        if (touchesForeignFluid) {
             setWaterLevel(level, pos, 0);
             return true;
         }
@@ -387,12 +386,8 @@ public final class FiniteWaterPhysics {
         }
     }
 
-    static boolean isVanillaWater(Fluid fluid) {
-        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
-    }
-
-    static boolean isVanillaLava(Fluid fluid) {
-        return fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA;
+    static boolean isForeignFluid(FluidState state) {
+        return !state.isEmpty() && !ModFluids.isFiniteWater(state.getType());
     }
 
     static boolean canFlowBetween(LevelReader level, BlockPos from, BlockPos to) {

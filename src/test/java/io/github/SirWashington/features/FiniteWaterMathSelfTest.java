@@ -22,7 +22,6 @@ import net.minecraft.world.level.block.FlowerPotBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 
@@ -122,7 +121,6 @@ public final class FiniteWaterMathSelfTest {
         verifyCurrentStrength();
         verifyFlowSounds();
         verifyPistonCurrentDirections();
-        verifyFiniteWaterContactFluids();
         verifyFiniteWaterRespectsBlockFaces();
         verifyRaisedWaterloggedVisualLevels();
         verifyExtendedDrainPath();
@@ -558,19 +556,6 @@ public final class FiniteWaterMathSelfTest {
                     || derVogel < 0 || derVogel > json.indexOf("\"SirWashington\"")) {
                 throw new AssertionError("Fabric metadata integration or author order is invalid");
             }
-        }
-    }
-
-    private static void verifyFiniteWaterContactFluids() {
-        if (!FiniteWaterPhysics.isVanillaWater(Fluids.WATER)
-                || !FiniteWaterPhysics.isVanillaWater(Fluids.FLOWING_WATER)
-                || FiniteWaterPhysics.isVanillaWater(Fluids.LAVA)
-                || !FiniteWaterPhysics.isVanillaLava(Fluids.LAVA)
-                || !FiniteWaterPhysics.isVanillaLava(Fluids.FLOWING_LAVA)
-                || FiniteWaterPhysics.isVanillaLava(Fluids.WATER)
-                || FiniteWaterPhysics.isVanillaWater(Fluids.EMPTY)
-                || FiniteWaterPhysics.isVanillaLava(Fluids.EMPTY)) {
-            throw new AssertionError("Finite-water contact fluid classification is invalid");
         }
     }
 

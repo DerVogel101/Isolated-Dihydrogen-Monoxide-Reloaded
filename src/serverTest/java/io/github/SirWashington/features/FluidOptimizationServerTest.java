@@ -1,16 +1,22 @@
 package io.github.SirWashington.features;
 
 import io.github.SirWashington.WaterPhysicsConfig;
+import io.github.SirWashington.fluid.FiniteWaterFluid;
+import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import jdk.jfr.Recording;
 
@@ -22,15 +28,18 @@ import java.util.Arrays;
 /** Dedicated, disposable server fixtures; reflection keeps production helpers private. */
 public final class FluidOptimizationServerTest implements ModInitializer {
     private static final BlockPos POS = new BlockPos(8, 200, 8);
-    private static final Method CONTACT = method("disappearsOnVanillaFluidContact");
+    private static final Method CONTACT = method("disappearsOnForeignFluidContact");
     private static final Method PUDDLE = method("movePuddleTowardDrop");
 
     @Override
     public void onInitialize() {
+        Fluid foreignFluid = Registry.register(BuiltInRegistries.FLUID,
+                Identifier.fromNamespaceAndPath("immersivefluids_test", "foreign_fluid"),
+                new FiniteWaterFluid.Source());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             try {
                 var level = server.overworld();
-                contacts(level);
+                contacts(level, foreignFluid);
                 puddles(level);
                 transfers(level);
                 benchmark(level);
@@ -77,7 +86,16 @@ public final class FluidOptimizationServerTest implements ModInitializer {
         }
     }
 
-    private static void contacts(ServerLevel level) throws Exception {
+    private static void contacts(ServerLevel level, Fluid foreignFluid) throws Exception {
+        expect(FiniteWaterPhysics.isForeignFluid(Fluids.WATER.defaultFluidState())
+                        && FiniteWaterPhysics.isForeignFluid(Fluids.FLOWING_WATER.defaultFluidState())
+                        && FiniteWaterPhysics.isForeignFluid(Fluids.LAVA.defaultFluidState())
+                        && FiniteWaterPhysics.isForeignFluid(Fluids.FLOWING_LAVA.defaultFluidState())
+                        && FiniteWaterPhysics.isForeignFluid(foreignFluid.defaultFluidState())
+                        && !FiniteWaterPhysics.isForeignFluid(Fluids.EMPTY.defaultFluidState())
+                        && !FiniteWaterPhysics.isForeignFluid(ModFluids.FINITE_WATER.defaultFluidState())
+                        && !FiniteWaterPhysics.isForeignFluid(ModFluids.FLOWING_FINITE_WATER.defaultFluidState()),
+                "Foreign-fluid classification");
         for (var fluid : new net.minecraft.world.level.material.Fluid[]{Fluids.WATER, Fluids.FLOWING_WATER, Fluids.LAVA, Fluids.FLOWING_LAVA}) {
             for (var direction : Direction.values()) {
                 box(level);
@@ -109,7 +127,14 @@ public final class FluidOptimizationServerTest implements ModInitializer {
         }
         box(level);
         water(level, POS, 1);
-        expect(!contact(level), "No vanilla contact");
+        water(level, POS.north(), 1);
+        expect(!contact(level), "Finite water does not react with itself");
+        expect(FiniteWaterPhysics.getWaterLevel(level, POS) == 1
+                        && FiniteWaterPhysics.getWaterLevel(level, POS.north()) == 1,
+                "Self-contact preserves both finite-water cells");
+        box(level);
+        water(level, POS, 1);
+        expect(!contact(level), "No foreign-fluid contact");
         System.out.println("FLUID_CONTACT_REGRESSION_PASS");
     }
 

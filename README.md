@@ -9,6 +9,20 @@ This branch targets Minecraft/Fabric 26.2 and Java 25. Finite-water physics use 
 .\gradlew.bat -g .gradle\codex-gradle-9.5.1 clean build --no-daemon
 ```
 
+## Fluid compatibility
+
+Finite water disappears when it directly touches any other non-empty fluid, including fluids
+added by other mods. Only the finite water is removed; the neighboring fluid is left unchanged.
+Block-face and waterlogging barriers still determine whether two fluids can touch. Fluids in the
+standard `#minecraft:lava` tag also produce the extinguishing sound and smoke effect.
+
+## Anti-rain generator
+
+While powered by redstone, `immersivefluids:anti_rain_generator` prevents new finite-water rain
+collection in its own chunk and the eight surrounding chunks. It does not stop Minecraft weather
+or rain rendering, alter vanilla or modded fluids or precipitation mechanics, or disable existing
+finite-water drying and evaporation.
+
 ## Water valve
 
 Place `immersivefluids:water_valve` blocks facing the same direction in a 1x1, 2x2, or 3x3 square.
