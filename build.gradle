@@ -21,6 +21,34 @@ def generatorTest = providers.gradleProperty('generatorTest').isPresent()
 def pumpTest = providers.gradleProperty('pumpTest').isPresent()
 def fireTest = providers.gradleProperty('fireTest').isPresent()
 def fluidOptimizationTest = providers.gradleProperty('fluidOptimizationTest').isPresent()
+def fluidPerformanceTest = providers.gradleProperty('fluidPerformanceTest').orNull
+def pumpPerformanceTest = providers.gradleProperty('pumpPerformanceTest').orNull
+if (fluidOptimizationTest) {
+    tasks.named('runServer') {
+        doLast {
+            if (!file('build/fluid-optimization-test-server/logs/latest.log').text.contains('FLUID_OPTIMIZATION_SERVER_TEST_PASS')) {
+                throw new GradleException('Fluid optimization regression failed; inspect its server log')
+            }
+        }
+    }
+}
+if (fluidPerformanceTest != null || pumpPerformanceTest != null) {
+    if (!((fluidPerformanceTest ?: pumpPerformanceTest) ==~ /[a-zA-Z0-9-]+/)) throw new GradleException('Invalid performance run name')
+    if (providers.gradleProperty('performanceBaseline').isPresent()) {
+        sourceSets.main.java.setSrcDirs(['build/performance/baseline-src/src/main/java'])
+        sourceSets.main.resources.setSrcDirs(['build/performance/baseline-src/src/main/resources'])
+    }
+}
+if (pumpPerformanceTest != null) {
+    sourceSets.main.java.srcDir 'src/pumpPerformanceTest/java'
+    tasks.named('runServer') {
+        doLast {
+            if (!file("build/performance/pumps/${pumpPerformanceTest}/logs/latest.log").text.contains('PUMP_PERFORMANCE_SERVER_TEST_PASS')) {
+                throw new GradleException('Pump performance fixture failed; inspect its server log')
+            }
+        }
+    }
+}
 def shaderTest = providers.gradleProperty('shaderTest').orNull
 if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
 	sourceSets.main.java.srcDir 'src/serverTest/java'
@@ -42,26 +70,34 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
+    splitEnvironmentSourceSets()
+    if (fluidPerformanceTest != null) sourceSets.client.java.srcDir 'src/performanceTest/java'
 	if (shaderTest != null) {
 		sourceSets.client.java.srcDir 'src/shaderTest/java'
 		sourceSets.client.resources.srcDir 'src/shaderTest/resources'
 	}
 
 	runs {
-		if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest) {
+		if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest || pumpPerformanceTest != null) {
 			server {
+                if (pumpPerformanceTest != null) vmArg "-Dimmersivefluids.pumpSpacing=${providers.gradleProperty('pumpSpacing').getOrElse('5')}"
 				if (fluidOptimizationTest) {
 					vmArg "-Djava.io.tmpdir=${file('build/fluid-optimization-test-server').absolutePath}"
 					vmArg "-XX:FlightRecorderOptions=repository=${file('build/fluid-optimization-test-server').absolutePath}"
 				}
 				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
 				if (rainfallReloadSeed) vmArg '-Dimmersivefluids.rainfallReloadSeed=true'
-				runDir fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : (rainfallTest || rainfallReloadSeed) ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
+				runDir pumpPerformanceTest != null ? "build/performance/pumps/${pumpPerformanceTest}" : fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : (rainfallTest || rainfallReloadSeed) ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
 			}
 		}
-		client {
-			ideConfigGenerated false
+        client {
+            ideConfigGenerated false
+            if (fluidPerformanceTest != null) {
+                runDir "build/performance/runs/${fluidPerformanceTest}"
+                vmArg "-Dimmersivefluids.performanceRun=${fluidPerformanceTest}"
+                vmArg "-Dimmersivefluids.performanceAllocations=${providers.gradleProperty('performanceAllocations').isPresent()}"
+                vmArg "-Dimmersivefluids.performanceClear=${providers.gradleProperty('performanceClear').isPresent()}"
+            }
 			if (shaderTest != null) runDir "build/shader-test-client/${shaderTest}"
 			if (shaderTest != null && !(shaderTest in ['vanilla', 'sodium', 'iris'])) vmArg '-Dimmersivefluids.shaderProbePack=true'
 			if (shaderTest != null && (shaderTest.startsWith('complementary') || shaderTest.startsWith('euphoria')))
@@ -98,6 +134,8 @@ dependencies {
 }
 
 processResources {
+    inputs.property 'fluidPerformanceTest', fluidPerformanceTest ?: ''
+    inputs.property 'pumpPerformanceTest', pumpPerformanceTest ?: ''
 	inputs.property "version", expandedModVersion
 	inputs.property "dripstoneTest", dripstoneTest
 	inputs.property "rainfallTest", rainfallTest
@@ -115,6 +153,13 @@ processResources {
 
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
+        if (pumpPerformanceTest != null) {
+            filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"', '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.PumpPerformanceServerTest"') }
+        }
+        if (fluidPerformanceTest != null) {
+            filter { line -> line.replace('"io.github.SirWashington.WaterPhysicsClient"',
+                    '"io.github.SirWashington.WaterPhysicsClient", "io.github.SirWashington.FluidPerformanceClient"') }
+        }
 		if (fluidOptimizationTest) {
 			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"', '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FluidOptimizationServerTest"') }
 		}

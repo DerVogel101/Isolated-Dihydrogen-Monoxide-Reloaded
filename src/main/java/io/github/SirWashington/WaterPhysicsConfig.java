@@ -126,8 +126,11 @@ public final class WaterPhysicsConfig {
     }
 
     public static boolean isConfiguredExtendedDrainPath(BlockState state) {
-        return get(SERVER.flow.extendedDrainPathBlocks).stream()
-                .anyMatch(selector -> ModBlockTags.matchesSelector(state, selector));
+        List<String> selectors = get(SERVER.flow.extendedDrainPathBlocks);
+        for (int i = 0; i < selectors.size(); i++) {
+            if (ModBlockTags.matchesSelector(state, selectors.get(i))) return true;
+        }
+        return false;
     }
 
     private static boolean matchesConfiguredBlocks(BlockState state, List<String> included, List<String> excluded) {

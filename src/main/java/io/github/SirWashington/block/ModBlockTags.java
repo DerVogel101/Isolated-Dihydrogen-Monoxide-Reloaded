@@ -14,6 +14,7 @@ import java.lang.invoke.VarHandle;
 import java.util.Set;
 
 public final class ModBlockTags {
+    private static final ThreadLocal<TagSelectors> TAG_SELECTORS = ThreadLocal.withInitial(TagSelectors::new);
     private static final VarHandle HOLDER_TAGS;
 
     static {
@@ -44,8 +45,8 @@ public final class ModBlockTags {
     public static boolean matchesSelector(BlockState state, String selector) {
         Identifier blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (selector.startsWith("#")) {
-            Identifier tagId = Identifier.tryParse(selector.substring(1));
-            return tagId != null && contains(TagKey.create(Registries.BLOCK, tagId), state);
+            TagKey<Block> tag = TAG_SELECTORS.get().parse(selector);
+            return tag != null && contains(tag, state);
         }
         if (selector.startsWith("@")) {
             String namespace = selector.substring(1);
@@ -56,6 +57,23 @@ public final class ModBlockTags {
         }
         Identifier id = Identifier.tryParse(selector);
         return id != null && blockId.equals(id);
+    }
+
+    /** Cache only parsing; contains() still reads the current tag set after every data-pack reload. */
+    private static final class TagSelectors {
+        private final String[] selectors = new String[256];
+        private final TagKey<?>[] tags = new TagKey<?>[256];
+
+        @SuppressWarnings("unchecked")
+        private TagKey<Block> parse(String selector) {
+            int slot = selector.hashCode() & (selectors.length - 1);
+            if (!selector.equals(selectors[slot])) {
+                Identifier id = Identifier.tryParse(selector.substring(1));
+                tags[slot] = id == null ? null : TagKey.create(Registries.BLOCK, id);
+                selectors[slot] = selector;
+            }
+            return (TagKey<Block>) tags[slot];
+        }
     }
 
     private static boolean wildcardMatches(String value, String pattern) {

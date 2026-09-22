@@ -41,6 +41,8 @@ public final class FluidOptimizationServerTest implements ModInitializer {
                 var level = server.overworld();
                 contacts(level, foreignFluid);
                 puddles(level);
+                differentialPuddles(level);
+                PumpOptimizationChecks.run(level);
                 transfers(level);
                 benchmark(level);
                 System.out.println("FLUID_OPTIMIZATION_SERVER_TEST_PASS");
@@ -245,12 +247,133 @@ public final class FluidOptimizationServerTest implements ModInitializer {
         System.out.println("FLUID_TRANSFER_REGRESSION_PASS");
     }
 
+    private static void differentialPuddles(ServerLevel level) throws Exception {
+        var config = WaterPhysicsConfig.SERVER.flow;
+        int radius = config.puddleSearchRadius.get();
+        int depth = config.extendedDrainMaxPathLength.get();
+        int visits = config.extendedDrainMaxVisitedCells.get();
+        long time = level.getGameTime();
+        var random = new java.util.Random(0x806129f);
+        int cases = 0;
+        try {
+            for (int limits = 0; limits < 3; limits++) {
+                config.puddleSearchRadius.set(new int[]{0, 4, 16}[limits]);
+                config.extendedDrainMaxPathLength.set(new int[]{4, 32, 128}[limits]);
+                config.extendedDrainMaxVisitedCells.set(new int[]{64, 256, 4096}[limits]);
+                for (int fixture = 0; fixture < 8; fixture++) {
+                    var initial = new java.util.LinkedHashMap<BlockPos, BlockState>();
+                    for (BlockPos cursor : BlockPos.betweenClosed(POS.offset(-18, -1, -18), POS.offset(18, 0, 18))) {
+                        BlockPos p = cursor.immutable();
+                        BlockState state = Blocks.STONE.defaultBlockState();
+                        boolean border = Math.abs(p.getX() - POS.getX()) == 18 || Math.abs(p.getZ() - POS.getZ()) == 18;
+                        if (!border && p.getY() == POS.getY()) {
+                            state = switch (fixture) {
+                                case 0, 1 -> Blocks.AIR.defaultBlockState();
+                                case 2, 3 -> Blocks.OAK_SLAB.defaultBlockState();
+                                default -> switch (random.nextInt(7)) {
+                                    case 0 -> Blocks.STONE.defaultBlockState();
+                                    case 1 -> Blocks.OAK_SLAB.defaultBlockState();
+                                    case 2 -> Blocks.OAK_STAIRS.defaultBlockState();
+                                    case 3 -> Blocks.SNOW.defaultBlockState().setValue(BlockStateProperties.LAYERS, 6);
+                                    default -> Blocks.AIR.defaultBlockState();
+                                };
+                            };
+                            if (fixture >= 4 && random.nextInt(3) == 0) {
+                                int amount = random.nextInt(9 - FiniteWaterloggedPlants.occupiedLayers(state));
+                                if (state.isAir() && amount > 0) state = FiniteWaterloggedPlants.fluidState(amount).createLegacyBlock();
+                                else if (FiniteWaterloggedPlants.canHoldFiniteWater(state)) state = FiniteWaterloggedPlants.withLevel(state, amount);
+                            }
+                        } else if (!border && p.getY() < POS.getY() && fixture % 2 == 1 && random.nextInt(15) == 0) {
+                            state = Blocks.AIR.defaultBlockState();
+                        }
+                        initial.put(p, state);
+                    }
+                    initial.put(POS, FiniteWaterloggedPlants.fluidState(1).createLegacyBlock());
+                    for (int rotation = 0; rotation < 4; rotation++) {
+                        ((net.minecraft.world.level.storage.ServerLevelData) level.getLevelData()).setGameTime(time + rotation);
+                        restore(level, initial);
+                        clearCurrents(level);
+                        boolean expected = ReferenceDrainSearch.movePuddleTowardDrop(level, POS);
+                        var states = new java.util.HashMap<BlockPos, BlockState>();
+                        initial.keySet().forEach(p -> states.put(p, level.getBlockState(p)));
+                        var currents = java.util.Map.copyOf(currents(level));
+                        restore(level, initial);
+                        clearCurrents(level);
+                        expect(puddle(level) == expected, "Reference result " + cases);
+                        for (var entry : states.entrySet()) {
+                            expect(level.getBlockState(entry.getKey()) == entry.getValue(), "Reference state " + cases + " at " + entry.getKey());
+                        }
+                        expect(currents(level).equals(currents), "Reference currents " + cases);
+                        cases++;
+                    }
+                }
+            }
+            // Exercise the fallback while the reusable workspace belongs to an outer invocation.
+            var field = FiniteWaterPhysics.class.getDeclaredField("DRAIN_SCRATCH");
+            field.setAccessible(true);
+            Object scratch = ((ThreadLocal<?>) field.get(null)).get();
+            var inUse = scratch.getClass().getDeclaredField("inUse");
+            inUse.setAccessible(true);
+            inUse.setBoolean(scratch, true);
+            try {
+                box(level);
+                water(level, POS, 1);
+                expect(!puddle(level), "Reentrant search result");
+                expect(inUse.getBoolean(scratch), "Nested search preserves outer ownership");
+            } finally { inUse.setBoolean(scratch, false); }
+        } finally {
+            config.puddleSearchRadius.set(radius);
+            config.extendedDrainMaxPathLength.set(depth);
+            config.extendedDrainMaxVisitedCells.set(visits);
+            ((net.minecraft.world.level.storage.ServerLevelData) level.getLevelData()).setGameTime(time);
+            clearCurrents(level);
+        }
+        System.out.println("FLUID_DIFFERENTIAL_SEARCH_PASS cases=" + cases);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void restore(ServerLevel level, java.util.Map<BlockPos, BlockState> states) throws Exception {
+        // Fixture restoration must bypass gameplay's old-water preservation, just like a water write.
+        var field = FiniteWaterPhysics.class.getDeclaredField("WATER_LEVEL_WRITE_POSITION");
+        field.setAccessible(true);
+        var guard = (ThreadLocal<BlockPos>) field.get(null);
+        BlockPos previous = guard.get();
+        try {
+            states.forEach((pos, state) -> {
+                guard.set(pos);
+                level.setBlock(pos, state, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+            });
+        } finally { guard.set(previous); }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<Object, Object> currents(ServerLevel level) throws Exception {
+        var field = FiniteWaterPhysics.class.getDeclaredField("ACTIVE_CURRENTS");
+        field.setAccessible(true);
+        var levels = (java.util.Map<ServerLevel, java.util.Map<Object, Object>>) field.get(null);
+        return levels.getOrDefault(level, java.util.Map.of());
+    }
+
+    private static void clearCurrents(ServerLevel level) throws Exception {
+        var currents = currents(level);
+        if (!currents.isEmpty()) currents.clear();
+    }
+
     private static void benchmark(ServerLevel level) throws Exception {
         try (var recording = new Recording()) {
             recording.enable("jdk.ExecutionSample").withPeriod(Duration.ofMillis(1));
+            recording.enable("jdk.ObjectAllocationSample").withStackTrace();
+            recording.enable("jdk.GarbageCollection");
+            recording.enable("jdk.GCPhasePause");
+            recording.enable("jdk.GCHeapSummary");
+            var allocations = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+            boolean allocationSupported = allocations.isThreadAllocatedMemorySupported();
+            if (allocationSupported) allocations.setThreadAllocatedMemoryEnabled(true);
+            long thread = Thread.currentThread().threadId();
             recording.start();
             for (String fixture : new String[]{"puddle", "drainage", "contact", "waterlogged"}) {
                 long[] samples = new long[3];
+                long[] allocated = new long[3];
                 for (int run = -2; run < 3; run++) {
                     box(level);
                     if (fixture.equals("drainage")) corridor(level, 4, false, true);
@@ -259,19 +382,28 @@ public final class FluidOptimizationServerTest implements ModInitializer {
                         for (BlockPos p : BlockPos.betweenClosed(POS.offset(-4, 0, -4), POS.offset(4, 0, 4))) put(level, p, Blocks.OAK_SLAB.defaultBlockState());
                     }
                     long nanos = 0;
+                    long bytes = 0;
                     for (int i = 0; i < 1000; i++) {
                         if (fixture.equals("waterlogged")) put(level, POS, FiniteWaterloggedPlants.withLevel(Blocks.OAK_SLAB.defaultBlockState(), 1));
                         else water(level, POS, 1);
                         if (fixture.equals("drainage")) water(level, POS.east(), 0);
                         long start = System.nanoTime();
+                        long before = allocationSupported ? allocations.getThreadAllocatedBytes(thread) : 0;
                         FiniteWaterPhysics.tick(level, POS);
+                        if (allocationSupported) bytes += allocations.getThreadAllocatedBytes(thread) - before;
                         nanos += System.nanoTime() - start;
                     }
-                    if (run >= 0) samples[run] = nanos;
+                    if (run >= 0) {
+                        samples[run] = nanos;
+                        allocated[run] = bytes;
+                    }
                 }
                 System.out.println("FLUID_BENCH " + fixture + " samples_ns=" + Arrays.toString(samples));
                 Arrays.sort(samples);
                 System.out.println("FLUID_BENCH " + fixture + " median_ns_per_tick=" + samples[1] / 1000);
+                Arrays.sort(allocated);
+                System.out.println("FLUID_ALLOCATION " + fixture + " median_bytes_per_tick="
+                        + (allocationSupported ? allocated[1] / 1000 : -1));
             }
             recording.stop();
             Path profile = Path.of("fluid-optimization.jfr");

@@ -638,6 +638,9 @@ public final class FiniteWaterMathSelfTest {
         var original = tagsField.get(holder);
         try {
             tagsField.set(holder, null);
+            if (ModBlockTags.matchesSelector(state, "#immersivefluids:extended_drain_path")) {
+                throw new AssertionError("Parsed selector must not match unbound tags");
+            }
             for (int i = 0; i < 1000; i++) {
                 if (ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)) {
                     throw new AssertionError("Unbound tags must return false");
@@ -647,6 +650,20 @@ public final class FiniteWaterMathSelfTest {
             if (!ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)
                     || ModBlockTags.contains(ModBlockTags.EXTENDED_DRAIN_PATH, state)) {
                 throw new AssertionError("Bound tags must preserve membership");
+            }
+            tagsField.set(holder, Set.of(ModBlockTags.EXTENDED_DRAIN_PATH));
+            if (!ModBlockTags.matchesSelector(state, "#immersivefluids:extended_drain_path")) {
+                throw new AssertionError("Cached selector must observe newly bound tags");
+            }
+            for (int i = 0; i < 512; i++) {
+                if (ModBlockTags.matchesSelector(state, "#test:cache_collision_" + i)) {
+                    throw new AssertionError("Selector cache must compare keys after hash collisions");
+                }
+            }
+            tagsField.set(holder, Set.of());
+            if (ModBlockTags.matchesSelector(state, "#immersivefluids:extended_drain_path")
+                    || ModBlockTags.matchesSelector(state, "#not a valid tag")) {
+                throw new AssertionError("Selector cache must preserve reload and invalid-selector behavior");
             }
             tagsField.set(holder, Set.of(ModBlockTags.EXTENDED_DRAIN_PATH));
             if (ModBlockTags.contains(ModBlockTags.FINITE_WATERLOGGING_EXCLUDED, state)

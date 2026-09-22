@@ -6,6 +6,8 @@ import io.github.SirWashington.block.ModBlocks;
 import io.github.SirWashington.block.PumpStructure;
 import io.github.SirWashington.fluid.ModFluids;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -36,11 +38,9 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
@@ -53,6 +53,8 @@ public final class FiniteWaterPhysics {
         .toArray(VoxelShape[]::new);
     private static final Set<Block> COPPER_GRATES = Set.copyOf(Blocks.COPPER_GRATE.asList());
     private static final ThreadLocal<BlockPos> WATER_LEVEL_WRITE_POSITION = new ThreadLocal<>();
+    private static final ThreadLocal<DrainScratch> DRAIN_SCRATCH = ThreadLocal.withInitial(DrainScratch::new);
+    private static final ThreadLocal<BarrierCache> BARRIER_CACHE = ThreadLocal.withInitial(BarrierCache::new);
     private static final Map<ServerLevel, Map<BlockPos, FlowCurrent>> ACTIVE_CURRENTS = new WeakHashMap<>();
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
@@ -65,6 +67,10 @@ public final class FiniteWaterPhysics {
     }
 
     public static void initialize() {
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            DRAIN_SCRATCH.remove();
+            BARRIER_CACHE.remove();
+        });
         ServerTickEvents.END_LEVEL_TICK.register(FiniteWaterPhysics::tickCurrents);
         ServerTickEvents.END_LEVEL_TICK.register(FiniteWaterSounds::tick);
     }
@@ -525,6 +531,21 @@ public final class FiniteWaterPhysics {
         if (from.isEmpty() && to.isEmpty()) {
             return 0;
         }
+        BarrierCache cache = BARRIER_CACHE.get();
+        int slot = (System.identityHashCode(from) * 31 + System.identityHashCode(to) * 7
+                + direction.ordinal()) & (BarrierCache.SIZE - 1);
+        if (cache.from[slot] == from && cache.to[slot] == to && cache.directions[slot] == direction) {
+            return cache.barriers[slot];
+        }
+        int barrier = calculateFlowBarrierLevel(from, to, direction);
+        cache.from[slot] = from;
+        cache.to[slot] = to;
+        cache.directions[slot] = direction;
+        cache.barriers[slot] = (byte) barrier;
+        return barrier;
+    }
+
+    private static int calculateFlowBarrierLevel(VoxelShape from, VoxelShape to, Direction direction) {
         if (Shapes.mergedFaceOccludes(from, to, direction)) {
             return MAX_LEVEL;
         }
@@ -773,57 +794,64 @@ public final class FiniteWaterPhysics {
         int normalRadius = WaterPhysicsConfig.puddleSearchRadius();
         int maxPathLength = WaterPhysicsConfig.extendedDrainMaxPathLength();
         int maxVisitedCells = WaterPhysicsConfig.extendedDrainMaxVisitedCells();
-        Queue<DrainSearchNode> queue = new ArrayDeque<>();
-        Set<BlockPos> visited = new HashSet<>();
-        queue.add(new DrainSearchNode(start, 0, null));
-        visited.add(start);
-
-        int rotation = Math.floorMod((int) (level.getGameTime() + start.asLong()), HORIZONTAL.length);
-        while (!queue.isEmpty()) {
-            DrainSearchNode currentNode = queue.remove();
-            if (currentNode.pathLength() >= maxPathLength) {
-                continue;
+        DrainScratch scratch = DRAIN_SCRATCH.get();
+        // World callbacks may re-enter physics before an outer search returns.
+        if (scratch.inUse) scratch = new DrainScratch();
+        scratch.prepare(maxVisitedCells);
+        try {
+            LongOpenHashSet visited = scratch.visited;
+            int head = 0, tail = 1;
+            scratch.positions[0] = start.asLong();
+            scratch.depths[0] = 0;
+            scratch.firstSteps[0] = -1;
+            visited.add(start.asLong());
+            int rotation = Math.floorMod((int) (level.getGameTime() + start.asLong()), HORIZONTAL.length);
+            while (head < tail) {
+                int index = head++;
+                int depth = scratch.depths[index];
+                if (depth >= maxPathLength) continue;
+                BlockPos current = scratch.current.set(scratch.positions[index]);
+                BlockState currentState = level.getBlockState(current);
+                for (int i = 0; i < HORIZONTAL.length; i++) {
+                    int directionIndex = (rotation + i) % HORIZONTAL.length;
+                    Direction direction = HORIZONTAL[directionIndex];
+                    BlockPos next = scratch.next.setWithOffset(current, direction);
+                    long packedNext = next.asLong();
+                    int nextPathLength = depth + 1;
+                    if (visited.contains(packedNext) || visited.size() >= maxVisitedCells
+                            || !isChunkLoaded(level, next) || nextPathLength > maxPathLength) continue;
+                    BlockState nextState = level.getBlockState(next);
+                    if ((Math.abs(next.getX() - start.getX()) > normalRadius
+                            || Math.abs(next.getZ() - start.getZ()) > normalRadius)
+                            && !isExtendedDrainPath(nextState)) continue;
+                    int entryBarrier = flowBarrierLevel(level, current, next, currentState, nextState, direction, true);
+                    if (!canFlowBetween(level, current, next, 1, entryBarrier, currentState, nextState)) continue;
+                    visited.add(packedNext);
+                    int nextLevel = getWaterLevel(nextState);
+                    if (nextLevel < 0 || nextLevel >= MAX_LEVEL - FiniteWaterloggedPlants.occupiedLayers(nextState)
+                            || nextLevel > Math.max(1, entryBarrier)) continue;
+                    byte firstStep = scratch.firstSteps[index] < 0 ? (byte) directionIndex : scratch.firstSteps[index];
+                    Direction step = HORIZONTAL[firstStep];
+                    BlockPos below = scratch.below.setWithOffset(next, Direction.DOWN);
+                    int dropLevel = isChunkLoaded(level, below) ? getWaterLevel(level, below) : -1;
+                    if (dropLevel >= 0 && dropLevel < getWaterCapacity(level, below)
+                            && canFlowBetween(level, next, below, 1)) {
+                        BlockPos destination = start.relative(step);
+                        int destinationLevel = getWaterLevel(level, destination);
+                        setWaterLevel(level, start, 0);
+                        setWaterLevel(level, destination, destinationLevel + 1);
+                        applyCurrent(level, start, destination, 1);
+                        return true;
+                    }
+                    scratch.positions[tail] = packedNext;
+                    scratch.depths[tail] = nextPathLength;
+                    scratch.firstSteps[tail++] = firstStep;
+                }
             }
-            BlockPos current = currentNode.pos();
-            BlockState currentState = level.getBlockState(current);
-            for (int i = 0; i < HORIZONTAL.length; i++) {
-                Direction direction = HORIZONTAL[(rotation + i) % HORIZONTAL.length];
-                BlockPos next = current.relative(direction);
-                int nextPathLength = currentNode.pathLength() + 1;
-                if (visited.contains(next) || visited.size() >= maxVisitedCells || !isChunkLoaded(level, next)
-                        || !mayTraverseDrainPath(
-                        start, next, nextPathLength, normalRadius, maxPathLength,
-                        pos -> isExtendedDrainPath(level.getBlockState(pos))
-                )) {
-                    continue;
-                }
-                BlockState nextState = level.getBlockState(next);
-                int entryBarrier = flowBarrierLevel(level, current, next, currentState, nextState, direction, true);
-                if (!canFlowBetween(level, current, next, 1, entryBarrier, currentState, nextState)) {
-                    continue;
-                }
-                visited.add(next);
-
-                int nextLevel = getWaterLevel(nextState);
-                if (nextLevel < 0 || nextLevel >= MAX_LEVEL - FiniteWaterloggedPlants.occupiedLayers(nextState) || nextLevel > Math.max(1, entryBarrier)) {
-                    continue;
-                }
-
-                Direction step = currentNode.firstStep() == null ? direction : currentNode.firstStep();
-                BlockPos below = next.below();
-                int dropLevel = isChunkLoaded(level, below) ? getWaterLevel(level, below) : -1;
-                if (dropLevel >= 0 && dropLevel < getWaterCapacity(level, below) && canFlowBetween(level, next, below, 1)) {
-                    BlockPos destination = start.relative(step);
-                    int destinationLevel = getWaterLevel(level, destination);
-                    setWaterLevel(level, start, 0);
-                    setWaterLevel(level, destination, destinationLevel + 1);
-                    applyCurrent(level, start, destination, 1);
-                    return true;
-                }
-                queue.add(new DrainSearchNode(next, nextPathLength, step));
-            }
+            return false;
+        } finally {
+            scratch.inUse = false;
         }
-        return false;
     }
 
     static boolean mayTraverseDrainPath(BlockPos start, BlockPos next, int pathLength,
@@ -845,7 +873,34 @@ public final class FiniteWaterPhysics {
         return MAX_LEVEL - FiniteWaterloggedPlants.occupiedLayers(level.getBlockState(pos));
     }
 
-    private record DrainSearchNode(BlockPos pos, int pathLength, Direction firstStep) {
+    private static final class DrainScratch {
+        private final LongOpenHashSet visited = new LongOpenHashSet();
+        private final BlockPos.MutableBlockPos current = new BlockPos.MutableBlockPos();
+        private final BlockPos.MutableBlockPos next = new BlockPos.MutableBlockPos();
+        private final BlockPos.MutableBlockPos below = new BlockPos.MutableBlockPos();
+        private long[] positions = new long[0];
+        private int[] depths = new int[0];
+        private byte[] firstSteps = new byte[0];
+        private boolean inUse;
+
+        private void prepare(int capacity) {
+            if (positions.length < capacity) {
+                positions = new long[capacity];
+                depths = new int[capacity];
+                firstSteps = new byte[capacity];
+                visited.ensureCapacity(capacity);
+            }
+            visited.clear();
+            inUse = true;
+        }
+    }
+
+    private static final class BarrierCache {
+        private static final int SIZE = 4096;
+        private final VoxelShape[] from = new VoxelShape[SIZE];
+        private final VoxelShape[] to = new VoxelShape[SIZE];
+        private final Direction[] directions = new Direction[SIZE];
+        private final byte[] barriers = new byte[SIZE];
     }
 
     private record FlowCurrent(Vec3 units, long expiresAt, long dryPassageUntil, PumpStructure guide) {
