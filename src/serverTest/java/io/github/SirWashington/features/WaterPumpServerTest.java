@@ -84,7 +84,8 @@ public final class WaterPumpServerTest implements ModInitializer {
                     flow.close();
                     clear(level);
                     level.setChunkForced(0, 0, false);
-                    System.out.println("WATER_PUMP_SERVER_TEST_PASS");
+                        PumpArchitectureChecks.run(level);
+                        System.out.println("WATER_PUMP_SERVER_TEST_PASS");
                     server.halt(false);
                 } else if (flow == null && ticks > 30 && contacts.tick()) {
                     contacts.close();

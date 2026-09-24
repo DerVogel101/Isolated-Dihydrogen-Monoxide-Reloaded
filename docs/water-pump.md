@@ -98,15 +98,13 @@ max_depth = 8
 max_visited_water_cells = 64
 tick_interval = 20
 water_units_per_cycle = 8
-straight_only = false
 ```
 
 `water_units_per_cycle` is the number of water levels per constituent block.
 For example, setting it to 3 gives total budgets of 3, 12 and 27 levels for
 1x1, 2x2 and 3x3 stages. Eight water levels equal one full water block.
 
-Set `straight_only = true` to use linear scans along the pumping direction,
-without BFS. This reduces search work but cannot use outlets around bends.
+Pressure search can route around bends beyond the pump outlet.
 Depth and visited-water limits, conservation and powered-pump boundaries still apply.
 
 Depth counts path steps from intake/source cells, including travel through the duct.

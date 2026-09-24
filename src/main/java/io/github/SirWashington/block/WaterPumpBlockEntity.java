@@ -25,14 +25,10 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class WaterPumpBlockEntity extends BlockEntity implements net.fabricmc.fabric.api.blockgetter.v2.RenderDataBlockEntity {
-    private static final int RUN_SOUND_DELAY = 20;
-    private static final int RUN_SOUND_INTERVAL = 20;
-    private long lastTransferTick = Long.MIN_VALUE;
     public static final BlockEntityType<WaterPumpBlockEntity> TYPE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(WaterPhysics.MODID, "water_pump"),
             FabricBlockEntityTypeBuilder.create(WaterPumpBlockEntity::new, ModBlocks.WATER_PUMP, ModBlocks.MUTED_WATER_PUMP).build());
     private int size = 1, column, row, connections;
-    private int poweredTicks;
     private VoxelShape collision;
     public final PumpAnimation animation = new PumpAnimation();
 
@@ -53,71 +49,11 @@ public final class WaterPumpBlockEntity extends BlockEntity implements net.fabri
     public static void tick(Level level, BlockPos pos, BlockState state, WaterPumpBlockEntity pump) {
         if (level.isClientSide()) {
             pump.animation.tick(state.getValue(WaterPumpBlock.POWERED));
-        } else {
-            if (level.getGameTime() % 5 == 0) pump.refresh();
-            if (pump.isController()) {
-                pump.tickSound((ServerLevel) level);
-                if (pump.transferDue((ServerLevel) level, pos)) {
-                    PumpFlow.tick((ServerLevel) level, pos);
-                }
-            }
         }
     }
 
-    private boolean transferDue(ServerLevel level, BlockPos pos) {
-        int interval = WaterPhysicsConfig.pumpTickInterval();
-        long now = level.getGameTime();
-        Direction.Axis axis = getBlockState().getValue(WaterPumpBlock.FACING).getAxis();
-        // Connected stages have identical transverse origins, even when a powered segment splits.
-        long transverse = BlockPos.asLong(axis == Direction.Axis.X ? 0 : pos.getX(),
-                axis == Direction.Axis.Y ? 0 : pos.getY(), axis == Direction.Axis.Z ? 0 : pos.getZ());
-        int phase = Math.floorMod(Long.hashCode(it.unimi.dsi.fastutil.HashCommon.mix(transverse)), interval);
-        long slot = Math.floorMod(now, interval);
-        if (slot != 0 && slot != phase) return false;
-        if (phase != 0 && hasNearbyAssembly(level, pos)) phase = 0;
-        if (slot != phase || (lastTransferTick != Long.MIN_VALUE && now >= lastTransferTick
-                && now - lastTransferTick < interval)) return false;
-        lastTransferTick = now;
-        return true;
-    }
-
-    private static boolean hasNearbyAssembly(ServerLevel level, BlockPos pos) {
-        // Conservative overlap bound: three stages, pressure reach, intake, and square extent.
-        long reach = 2L * (3L * WaterPhysicsConfig.pumpMaxDepth() + 8);
-        // ponytail: keep the original phase for huge configured searches rather than scan unbounded chunks.
-        if (reach > 128) return true;
-        int radius = (int) reach;
-        PumpStructure stage = PumpStructure.find(level, pos);
-        var series = stage.series(level);
-        pos = series.getFirst().origin();
-        for (int x = (pos.getX() - radius) >> 4; x <= (pos.getX() + radius) >> 4; x++) {
-            for (int z = (pos.getZ() - radius) >> 4; z <= (pos.getZ() + radius) >> 4; z++) {
-                var chunk = level.getChunkSource().getChunkNow(x, z);
-                if (chunk == null) continue;
-                for (var entity : chunk.getBlockEntities().values()) {
-                    if (!(entity instanceof WaterPumpBlockEntity) || entity.isRemoved()) continue;
-                    BlockPos other = entity.getBlockPos();
-                    if (Math.abs((long) other.getX() - pos.getX()) <= radius
-                            && Math.abs((long) other.getY() - pos.getY()) <= radius
-                            && Math.abs((long) other.getZ() - pos.getZ()) <= radius
-                            && !series.contains(PumpStructure.find(level, other))) return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void tickSound(ServerLevel level) {
-        if (muted()) return;
-        if (!getBlockState().getValue(WaterPumpBlock.POWERED)) {
-            poweredTicks = 0;
-            return;
-        }
-        poweredTicks++;
-        if (poweredTicks < RUN_SOUND_DELAY
-                || (poweredTicks - RUN_SOUND_DELAY) % RUN_SOUND_INTERVAL != 0) return;
-        PumpStructure stage = PumpStructure.find(level, worldPosition);
-        boolean wet = PumpFlow.hasWater(level, stage);
+    public void playRunningSound(ServerLevel level, PumpStructure stage, boolean wet) {
+        if (muted() || !getBlockState().getValue(WaterPumpBlock.POWERED)) return;
         float mechanicalVolume = 0.22F + stage.size() * 0.07F;
         float variation = (level.getRandom().nextFloat() - 0.5F) * 0.06F;
         BlockPos soundPos = stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2);
@@ -146,7 +82,6 @@ public final class WaterPumpBlockEntity extends BlockEntity implements net.fabri
         if (state.getValue(WaterPumpBlock.POWERED) != powered) {
             level.setBlock(worldPosition, state.setValue(WaterPumpBlock.POWERED, powered), Block.UPDATE_CLIENTS);
             if (powered && nextColumn == 0 && nextRow == 0 && !muted()) {
-                poweredTicks = 0;
                 level.playSound(null, stage.cell((stage.size() - 1) / 2, (stage.size() - 1) / 2),
                         SoundEvents.COPPER_BULB_TURN_ON, SoundSource.BLOCKS,
                         0.5F + stage.size() * 0.12F, 0.68F);
@@ -168,7 +103,14 @@ public final class WaterPumpBlockEntity extends BlockEntity implements net.fabri
     public void setBlockState(BlockState state) { super.setBlockState(state); collision = null; }
 
     @Override
+    public void setLevel(Level level) {
+        super.setLevel(level);
+        io.github.SirWashington.features.PumpManager.register(level, worldPosition);
+    }
+
+    @Override
     public void setRemoved() {
+        io.github.SirWashington.features.PumpManager.unregister(level, worldPosition);
         PumpStructure.invalidate(level);
         super.setRemoved();
     }
@@ -177,6 +119,7 @@ public final class WaterPumpBlockEntity extends BlockEntity implements net.fabri
     public void clearRemoved() {
         PumpStructure.invalidate(level);
         super.clearRemoved();
+        io.github.SirWashington.features.PumpManager.register(level, worldPosition);
     }
 
     @Override

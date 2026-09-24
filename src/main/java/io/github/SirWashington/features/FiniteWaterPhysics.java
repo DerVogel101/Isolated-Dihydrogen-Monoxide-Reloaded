@@ -433,7 +433,7 @@ public final class FiniteWaterPhysics {
 
     private static int flowBarrierLevel(LevelReader level, BlockPos from, BlockPos to,
                                        BlockState fromState, BlockState toState, Direction direction, boolean naturalFlow) {
-        if (PumpFlow.blocksBackflow(fromState, direction) || PumpFlow.blocksBackflow(toState, direction)) {
+        if (PumpFlow.blocksFlow(fromState, direction) || PumpFlow.blocksFlow(toState, direction)) {
             return MAX_LEVEL;
         }
         VoxelShape fromShape = flowShape(fromState, level, from);
@@ -629,9 +629,7 @@ public final class FiniteWaterPhysics {
 
     private static void tickCurrents(ServerLevel level) {
         Map<BlockPos, FlowCurrent> currents = ACTIVE_CURRENTS.get(level);
-        if (currents == null) {
-            return;
-        }
+        if (currents == null) currents = java.util.Collections.emptyMap();
         if (!WaterPhysicsConfig.currentsEnabled()) {
             ACTIVE_CURRENTS.remove(level);
             return;
@@ -662,6 +660,7 @@ public final class FiniteWaterPhysics {
         if (currents.isEmpty()) {
             ACTIVE_CURRENTS.remove(level);
         }
+        PumpCurrentField.collect(level, entityCurrents, guidedEntities);
         entityCurrents.forEach((entity, units) -> pushWithCurrent(entity, units, guidedEntities.contains(entity)));
     }
 

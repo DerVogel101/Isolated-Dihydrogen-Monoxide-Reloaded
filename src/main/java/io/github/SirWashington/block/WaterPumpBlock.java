@@ -90,7 +90,13 @@ public final class WaterPumpBlock extends WaterloggedTransparentBlock implements
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return type == WaterPumpBlockEntity.TYPE ? (world, pos, current, entity) ->
+        return level.isClientSide() && type == WaterPumpBlockEntity.TYPE ? (world, pos, current, entity) ->
                 WaterPumpBlockEntity.tick(world, pos, current, (WaterPumpBlockEntity) entity) : null;
+    }
+
+    @Override
+    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+                                   net.minecraft.world.level.redstone.Orientation orientation, boolean movedByPiston) {
+        io.github.SirWashington.features.PumpManager.powerChanged(level, pos);
     }
 }

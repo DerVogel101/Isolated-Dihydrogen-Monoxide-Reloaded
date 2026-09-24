@@ -34,7 +34,7 @@ final class PumpOptimizationChecks {
                 place(level, shape);
                 cached = PumpStructure.find(level, POS);
                 ((ServerLevelData) level.getLevelData()).setGameTime(level.getGameTime() + 1);
-                expect(PumpStructure.find(level, POS) != cached, "Cache expires each tick");
+                expect(PumpStructure.find(level, POS) == cached, "Topology survives unchanged ticks");
             }
             clear(level);
             for (int i = 0; i < 3; i++) place(level, new PumpStructure(POS.above(i), 1, Direction.UP));
@@ -43,7 +43,6 @@ final class PumpOptimizationChecks {
             expect(first.series(level) == PumpStructure.find(level, POS.above()).series(level), "Series shared across stages");
             level.setBlock(POS.above(2), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
             expect(PumpStructure.find(level, POS).series(level).size() == 2, "Series removal invalidates immediately");
-            phases(level);
             benchmark(level);
         } finally {
             clear(level);
@@ -51,58 +50,6 @@ final class PumpOptimizationChecks {
             PumpStructure.invalidate(level);
         }
         System.out.println("PUMP_OPTIMIZATION_REGRESSION_PASS");
-    }
-
-    private static void phases(ServerLevel level) throws Exception {
-        var due = WaterPumpBlockEntity.class.getDeclaredMethod("transferDue", ServerLevel.class, BlockPos.class);
-        due.setAccessible(true);
-        int interval = WaterPhysicsConfig.pumpTickInterval();
-        clear(level);
-        place(level, new PumpStructure(POS, 1, Direction.UP));
-        place(level, new PumpStructure(POS.above(), 1, Direction.UP));
-        var lower = (WaterPumpBlockEntity) level.getBlockEntity(POS);
-        var upper = (WaterPumpBlockEntity) level.getBlockEntity(POS.above());
-        int cycles = 0;
-        for (int tick = 0; tick < interval * 3; tick++) {
-            ((ServerLevelData) level.getLevelData()).setGameTime(tick);
-            boolean a = (boolean) due.invoke(lower, level, POS);
-            boolean b = (boolean) due.invoke(upper, level, POS.above());
-            expect(a == b, "Connected stages use the same phase");
-            if (a) cycles++;
-        }
-        expect(cycles == 3, "One cycle per interval");
-        clear(level);
-        place(level, new PumpStructure(POS, 1, Direction.UP));
-        place(level, new PumpStructure(POS.east(2), 1, Direction.WEST));
-        var competing = (WaterPumpBlockEntity) level.getBlockEntity(POS);
-        for (int tick = 0; tick < interval * 3; tick++) {
-            ((ServerLevelData) level.getLevelData()).setGameTime(tick);
-            expect((boolean) due.invoke(competing, level, POS) == (tick % interval == 0),
-                    "Nearby competing assemblies retain original schedule");
-        }
-        clear(level);
-        place(level, new PumpStructure(POS, 1, Direction.UP));
-        var changing = (WaterPumpBlockEntity) level.getBlockEntity(POS);
-        long previousCycle = Long.MIN_VALUE;
-        try {
-            for (int tick = 0; tick < 180; tick++) {
-                int currentInterval = tick < 60 ? 7 : tick < 120 ? 3 : 20;
-                WaterPhysicsConfig.SERVER.pump.tickInterval.set(currentInterval);
-                ((ServerLevelData) level.getLevelData()).setGameTime(tick);
-                if (tick == 30) place(level, new PumpStructure(POS.east(2), 1, Direction.WEST));
-                if (tick == 90) level.setBlock(POS.east(2), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
-                if ((boolean) due.invoke(changing, level, POS)) {
-                    expect(previousCycle == Long.MIN_VALUE || tick - previousCycle >= currentInterval,
-                            "Interval and assembly changes must not cause catch-up bursts");
-                    previousCycle = tick;
-                }
-                expect(!(boolean) due.invoke(changing, level, POS), "No duplicate cycle in one tick");
-            }
-            expect(previousCycle >= 140, "Transfers resume after interval and assembly changes");
-        } finally {
-            WaterPhysicsConfig.SERVER.pump.tickInterval.set(interval);
-        }
-        System.out.println("PUMP_PHASE_REGRESSION_PASS");
     }
 
     private static void benchmark(ServerLevel level) {

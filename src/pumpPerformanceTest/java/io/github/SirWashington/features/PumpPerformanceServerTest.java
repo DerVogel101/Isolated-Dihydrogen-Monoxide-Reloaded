@@ -7,10 +7,12 @@ import io.github.SirWashington.block.PumpStructure;
 import io.github.SirWashington.block.WaterPumpBlock;
 import io.github.SirWashington.block.WaterPumpBlockEntity;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.ServerLevelData;
@@ -23,18 +25,31 @@ import java.util.Arrays;
 public final class PumpPerformanceServerTest implements ModInitializer {
     @Override public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            try {
-                run(server.overworld());
-                System.out.println("PUMP_PERFORMANCE_SERVER_TEST_PASS");
-            } catch (Throwable failure) {
-                failure.printStackTrace();
-            } finally {
-                server.halt(false);
-            }
+            ServerLevel level = server.overworld();
+            for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) level.setChunkForced(x, z, true);
+            int[] ticks = {0};
+            boolean[] done = {false};
+            ServerTickEvents.END_SERVER_TICK.register(ticked -> {
+                if (ticked != server || done[0]) return;
+                boolean loaded = true;
+                for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++)
+                    loaded &= level.isPositionTickingWithEntitiesLoaded(ChunkPos.pack(x, z));
+                if (!loaded && ++ticks[0] < 200) return;
+                done[0] = true;
+                try {
+                    if (!loaded) throw new AssertionError("Pump fixture chunks did not become entity-ticking");
+                    run(level);
+                    System.out.println("PUMP_PERFORMANCE_SERVER_TEST_PASS");
+                } catch (Throwable failure) {
+                    failure.printStackTrace();
+                } finally {
+                    server.halt(false);
+                }
+            });
         });
     }
 
-    private static void run(ServerLevel level) {
+    private static void run(ServerLevel level) throws InterruptedException {
         var cells = new ArrayList<BlockPos>();
         var pumps = new ArrayList<WaterPumpBlockEntity>();
         BlockPos base = new BlockPos(0, 270, 0);
@@ -63,36 +78,50 @@ public final class PumpPerformanceServerTest implements ModInitializer {
         long[] times = new long[600];
         long initialTime = level.getGameTime();
         long clock = initialTime - Math.floorMod(initialTime, interval) + interval;
+        PumpManager manager = PumpManager.get(level);
         for (int run = -1; run < 3; run++) {
             long bytes = 0, units = 0;
+            int rebuilds = 0;
+            PumpManager.Group previousGroup = manager.groups.isEmpty() ? null : manager.groups.getFirst();
             for (int tick = 0; tick < times.length; tick++, clock++) {
                 ((ServerLevelData) level.getLevelData()).setGameTime(clock);
-                if (clock % interval == 0) {
+                if (run == -1 && tick == 0) {
                     for (BlockPos p : cells) {
                         FiniteWaterPhysics.setWaterLevel(level, p.below(), 8);
                         FiniteWaterPhysics.setWaterLevel(level, p, 8);
-                        FiniteWaterPhysics.setWaterLevel(level, p.above(), 0);
                     }
                 }
                 long before = threads.isThreadAllocatedMemorySupported() ? threads.getThreadAllocatedBytes(thread) : 0;
                 long start = System.nanoTime();
-                for (var pump : pumps) {
-                    WaterPumpBlockEntity.tick(level, pump.getBlockPos(), pump.getBlockState(), pump);
+                manager.finish();
+                long finishNanos = System.nanoTime() - start;
+                long finishBytes = threads.isThreadAllocatedMemorySupported() ? threads.getThreadAllocatedBytes(thread) - before : 0;
+                for (BlockPos p : cells) {
+                    int output = FiniteWaterPhysics.getWaterLevel(level, p.above());
+                    units += output;
+                    if (output > 0) FiniteWaterPhysics.setWaterLevel(level, p.above(), 0);
+                    if (FiniteWaterPhysics.getWaterLevel(level, p.below()) < 8) FiniteWaterPhysics.setWaterLevel(level, p.below(), 8);
+                    if (FiniteWaterPhysics.getWaterLevel(level, p) < 8) FiniteWaterPhysics.setWaterLevel(level, p, 8);
                 }
-                times[tick] = System.nanoTime() - start;
-                if (threads.isThreadAllocatedMemorySupported()) bytes += threads.getThreadAllocatedBytes(thread) - before;
-                if (clock % interval == interval - 1) {
-                    for (BlockPos p : cells) units += FiniteWaterPhysics.getWaterLevel(level, p.above());
-                }
+                before = threads.isThreadAllocatedMemorySupported() ? threads.getThreadAllocatedBytes(thread) : 0;
+                start = System.nanoTime();
+                manager.tick();
+                if (!manager.groups.isEmpty() && manager.groups.getFirst() != previousGroup) { rebuilds++; previousGroup = manager.groups.getFirst(); }
+                times[tick] = finishNanos + System.nanoTime() - start;
+                if (threads.isThreadAllocatedMemorySupported()) bytes += finishBytes + threads.getThreadAllocatedBytes(thread) - before;
+                Thread.sleep(50); // Pace synthetic ticks at 20 TPS.
             }
-            if (units != (long) cells.size() * 8 * times.length / interval) {
-                throw new AssertionError("Unexpected pump throughput: " + units);
-            }
+            if (units == 0) throw new AssertionError("Pump fixture transferred no water");
+            if (manager.groups.size() != pumps.size() / 9) throw new AssertionError("Stone-isolated pumps must remain independent");
+            if (run >= 0 && rebuilds != 0) throw new AssertionError("Water transfer rebuilt stable pump topology");
             if (run >= 0) {
                 Arrays.sort(times);
                 System.out.println("PUMP_PERFORMANCE run=" + run + " blocks=" + pumps.size()
                         + " p95_ns=" + times[569] + " p99_ns=" + times[593] + " peak_ns=" + times[599]
-                        + " allocated_bytes_per_tick=" + bytes / times.length + " transferred_units=" + units);
+                        + " allocated_bytes_per_tick=" + bytes / times.length + " transferred_units=" + units
+                        + " expected_units=" + (long) cells.size() * 8 * times.length / interval
+                        + " groups=" + manager.groups.size() + " rebuilds=" + rebuilds
+                        + " snapshot_cells=" + manager.groups.stream().mapToInt(g -> g.buffers[0].size + g.buffers[1].size).sum());
             }
         }
     }

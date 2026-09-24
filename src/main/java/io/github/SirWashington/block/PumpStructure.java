@@ -20,29 +20,31 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
 
     /** Server-thread only; live water and redstone are deliberately not cached. */
     private static TickCache cache(ServerLevel level) {
-        TickCache cache = CACHES.computeIfAbsent(level, ignored -> new TickCache());
-        if (cache.tick != level.getGameTime()) {
-            cache.structures.clear();
-            cache.series.clear();
-            cache.tick = level.getGameTime();
-        }
-        return cache;
+        return CACHES.computeIfAbsent(level, ignored -> new TickCache());
     }
 
     public static void invalidate(Level level) {
-        if (level instanceof ServerLevel server) CACHES.remove(server);
+        if (level instanceof ServerLevel server) {
+            CACHES.remove(server);
+            io.github.SirWashington.features.PumpManager.invalidate(server);
+        }
     }
 
     public static void initialize() {
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> invalidate(level));
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> invalidate(level));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {
+            if (io.github.SirWashington.features.PumpManager.chunkRelevant(level, chunk.getPos())) invalidate(level);
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
+            if (io.github.SirWashington.features.PumpManager.chunkRelevant(level, chunk.getPos())) invalidate(level);
+        });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.FULL_CHUNK_STATUS_CHANGE.register(
-                (level, chunk, before, after) -> invalidate(level));
+                (level, chunk, before, after) -> {
+                    if (io.github.SirWashington.features.PumpManager.chunkRelevant(level, chunk.getPos())) invalidate(level);
+                });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> CACHES.clear());
     }
 
     private static final class TickCache {
-        private long tick = Long.MIN_VALUE;
         private final Long2ObjectOpenHashMap<PumpStructure> structures = new Long2ObjectOpenHashMap<>();
         private final Long2ObjectOpenHashMap<List<PumpStructure>> series = new Long2ObjectOpenHashMap<>();
     }
@@ -72,10 +74,6 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
         SquareStructure square = SquareStructure.find(level, pos);
         PumpStructure found = new PumpStructure(square.origin().immutable(), square.size(), square.facing());
         if (cache != null) {
-            if (cache.structures.size() + found.size * found.size > 4096) {
-                cache.structures.clear();
-                cache.series.clear();
-            }
             for (int x = 0; x < found.size; x++) for (int y = 0; y < found.size; y++) {
                 cache.structures.put(found.cell(x, y).asLong(), found);
             }
@@ -126,7 +124,6 @@ public record PumpStructure(BlockPos origin, int size, Direction facing) {
         }
         List<PumpStructure> result = List.copyOf(stages);
         if (cache != null) {
-            if (cache.series.size() + result.size() > 4096) cache.series.clear();
             for (PumpStructure stage : result) cache.series.put(stage.origin.asLong(), result);
         }
         return result;

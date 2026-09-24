@@ -14,8 +14,10 @@ public abstract class MixinPumpTopology {
     @ModifyExpressionValue(method = "setBlockState", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/level/chunk/LevelChunkSection;setBlockState(IIILnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/level/block/state/BlockState;"))
     private BlockState immersivefluids$invalidatePumpTopology(BlockState previous,
-                                                             @Local(argsOnly = true) BlockState next) {
+                                                             @Local(argsOnly = true) BlockState next,
+                                                             @Local(argsOnly = true) net.minecraft.core.BlockPos pos) {
         LevelChunk chunk = (LevelChunk) (Object) this;
+        io.github.SirWashington.features.PumpManager.changed(chunk.getLevel(), pos, previous, next);
         if ((previous.getBlock() instanceof WaterPumpBlock || next.getBlock() instanceof WaterPumpBlock)
                 && (previous.getBlock() != next.getBlock()
                 || previous.getValue(WaterPumpBlock.FACING) != next.getValue(WaterPumpBlock.FACING))) {

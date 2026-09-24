@@ -42,6 +42,12 @@ if (fluidPerformanceTest != null || pumpPerformanceTest != null) {
 if (pumpPerformanceTest != null) {
     sourceSets.main.java.srcDir 'src/pumpPerformanceTest/java'
     tasks.named('runServer') {
+        doFirst {
+            def props = file("build/performance/pumps/${pumpPerformanceTest}/server.properties")
+            props.parentFile.mkdirs()
+            def content = props.exists() ? props.text : ''
+            props.text = (content =~ /(?m)^max-tick-time=/) ? content.replaceAll(/(?m)^max-tick-time=.*/, 'max-tick-time=-1') : content + '\nmax-tick-time=-1\n'
+        }
         doLast {
             if (!file("build/performance/pumps/${pumpPerformanceTest}/logs/latest.log").text.contains('PUMP_PERFORMANCE_SERVER_TEST_PASS')) {
                 throw new GradleException('Pump performance fixture failed; inspect its server log')
@@ -78,7 +84,7 @@ loom {
 	}
 
 	runs {
-		if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest || pumpPerformanceTest != null) {
+        if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest || pumpPerformanceTest != null) {
 			server {
                 if (pumpPerformanceTest != null) vmArg "-Dimmersivefluids.pumpSpacing=${providers.gradleProperty('pumpSpacing').getOrElse('5')}"
 				if (fluidOptimizationTest) {
@@ -86,8 +92,8 @@ loom {
 					vmArg "-XX:FlightRecorderOptions=repository=${file('build/fluid-optimization-test-server').absolutePath}"
 				}
 				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
-				if (rainfallReloadSeed) vmArg '-Dimmersivefluids.rainfallReloadSeed=true'
-				runDir pumpPerformanceTest != null ? "build/performance/pumps/${pumpPerformanceTest}" : fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : (rainfallTest || rainfallReloadSeed) ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
+            if (rainfallReloadSeed) vmArg '-Dimmersivefluids.rainfallReloadSeed=true'
+                runDir pumpPerformanceTest != null ? "build/performance/pumps/${pumpPerformanceTest}" : fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : (rainfallTest || rainfallReloadSeed) ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
 			}
 		}
         client {

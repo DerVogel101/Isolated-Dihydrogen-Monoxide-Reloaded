@@ -61,6 +61,8 @@ public final class WaterValveBlockEntity extends BlockEntity implements net.fabr
         if (level.isClientSide()) return;
         if (level.getGameTime() % 5 == 0) valve.refresh();
         int progress = (int)valve.progress(0);
+        if ((progress >= ValveGeometry.SEALED_AT) != (valve.previousProgress >= ValveGeometry.SEALED_AT))
+            io.github.SirWashington.features.PumpManager.geometryChanged(level, pos);
         if (valve.isController()) valve.tickSound(progress);
         // Geometry changes without replacing waterlogged states. Wake stationary water on both sides.
         if (level.getGameTime() % 5 == 0 && progress > 0 && progress < ValveGeometry.DURATION

@@ -47,7 +47,6 @@ public final class WaterPhysicsConfig {
     public static int pumpMaxVisitedWaterCells() { return get(SERVER.pump.maxVisitedWaterCells); }
     public static int pumpTickInterval() { return get(SERVER.pump.tickInterval); }
     public static int pumpWaterUnitsPerCycle() { return get(SERVER.pump.waterUnitsPerCycle); }
-    public static boolean pumpStraightOnly() { return get(SERVER.pump.straightOnly); }
 
     public static boolean dripstoneEnabled() {
         return get(SERVER.dripstone.enabled);
@@ -377,8 +376,6 @@ public final class WaterPhysicsConfig {
     }
 
     public static final class Pump {
-        @ConfigProperty(name = "straight_only", comment = "Use a straight discharge scan instead of breadth-first pressure search; cannot route around bends")
-        public final BoolProperty straightOnly = BoolProperty.create(false);
         @ConfigProperty(name = "max_depth", comment = "Pressure-search path length per powered stage")
         public final IntProperty maxDepth = IntProperty.create(8, 1, Integer.MAX_VALUE);
         @ConfigProperty(name = "max_visited_water_cells", comment = "Water cells visited per transfer, per powered stage")

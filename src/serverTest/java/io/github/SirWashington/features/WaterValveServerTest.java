@@ -1,6 +1,5 @@
 package io.github.SirWashington.features;
 
-import io.github.SirWashington.WaterPhysicsConfig;
 import io.github.SirWashington.block.*;
 import io.github.SirWashington.item.ModItems;
 import net.fabricmc.api.ModInitializer;
@@ -61,8 +60,14 @@ public final class WaterValveServerTest implements ModInitializer {
                 if (!level.isPositionTickingWithEntitiesLoaded(net.minecraft.world.level.ChunkPos.pack(valves.getFirst().origin()))) {
                     expect(++waiting < 200, "Test chunk must finish loading"); return;
                 }
-                ticks++;
-                if (ticks == 1) {
+            ticks++;
+            if (ticks > 1 && ticks <= 281 && ticks != 141) for (var square : valves) {
+                BlockPos pos = square.origin(), outside = pos.relative(square.facing());
+                boolean open = valve(level, pos).progress(0) < ValveGeometry.SEALED_AT;
+                expect(FiniteWaterPhysics.canFlowBetween(level, pos, outside) == open,
+                        "Valve passage changes only at seal threshold: " + square + " tick=" + ticks);
+            }
+            if (ticks == 1) {
                     for (var square : valves) { pumpFlow(level, square, false); power(level, square, true); }
                 } else if (ticks == 21) {
                     for (var square : valves) check(level, square, 120);
@@ -155,15 +160,12 @@ public final class WaterValveServerTest implements ModInitializer {
         level.setBlock(stop, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         level.setBlock(pump, ModBlocks.WATER_PUMP.defaultBlockState().setValue(WaterPumpBlock.FACING, square.facing())
                 .setValue(WaterPumpBlock.POWERED, true), Block.UPDATE_CLIENTS);
-        boolean previous = WaterPhysicsConfig.pumpStraightOnly();
         try {
-            for (boolean straight : new boolean[]{false, true}) {
-                WaterPhysicsConfig.SERVER.pump.straightOnly.set(straight);
                 for (int x = 0; x < square.size(); x++) for (int y = 0; y < square.size(); y++)
                     FiniteWaterPhysics.setWaterLevel(level, square.cell(x, y), 8);
                 FiniteWaterPhysics.setWaterLevel(level, pump, 8);
                 expect(PumpFlow.transfer(level, List.of(new PumpStructure(pump, 1, square.facing())), 3, 64) == open,
-                        "Pump-driven water respects valve " + square + " open=" + open + " straight=" + straight);
+                        "Pump-driven water respects valve " + square + " open=" + open);
                 int total = 0;
                 for (BlockPos pos : BlockPos.betweenClosed(square.origin().offset(-3, -3, -3), square.origin().offset(3, 3, 3)))
                     total += Math.max(0, FiniteWaterPhysics.getWaterLevel(level, pos));
@@ -171,9 +173,7 @@ public final class WaterValveServerTest implements ModInitializer {
                 for (BlockPos pos : BlockPos.betweenClosed(square.origin().offset(-3, -3, -3), square.origin().offset(3, 3, 3))) {
                     if (FiniteWaterPhysics.getWaterLevel(level, pos) > 0) FiniteWaterPhysics.setWaterLevel(level, pos, 0);
                 }
-            }
-        } finally { WaterPhysicsConfig.SERVER.pump.straightOnly.set(previous); }
-        level.removeBlock(pump, false); level.removeBlock(stop, false);
+        } finally { level.removeBlock(pump, false); level.removeBlock(stop, false); }
     }
 
     private static void crafting(ServerLevel level) {
