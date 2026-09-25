@@ -2,6 +2,7 @@ package io.github.SirWashington.compat.iris.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.github.SirWashington.features.FiniteWaterloggedPlants;
 import io.github.SirWashington.features.FrozenWaterloggedBlocks;
 import io.github.SirWashington.fluid.ModFluids;
@@ -16,7 +17,10 @@ import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.Transl
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,6 +32,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = DefaultFluidRenderer.class, remap = false)
 public abstract class SodiumFluidRendererMixin {
     @Unique private float immersivefluids$floor;
+
+    @WrapOperation(method = "render", at = @At(value = "INVOKE", remap = true,
+            target = "Lnet/minecraft/world/level/material/FluidState;is(Lnet/minecraft/tags/TagKey;)Z"))
+    private boolean immersivefluids$smoothWaterLighting(FluidState fluid, TagKey<Fluid> tag, Operation<Boolean> original) {
+        return original.call(fluid, tag) || tag == FluidTags.WATER && ModFluids.isFiniteWater(fluid.getType());
+    }
+
     @WrapMethod(method = "render")
     private void immersivefluids$floor(LevelSlice level, BlockState block, FluidState fluid, BlockPos pos, BlockPos offset,
             TranslucentGeometryCollector collector, ChunkModelBuilder builder, Material material,

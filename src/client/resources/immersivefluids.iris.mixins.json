@@ -4,6 +4,6 @@
   "package": "io.github.SirWashington.compat.iris.mixin",
   "plugin": "io.github.SirWashington.compat.iris.IrisMixinPlugin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["IncludeGraphMixin", "BlockMaterialMappingMixin", "ItemIdMapMixin", "SodiumBlockRendererMixin", "SodiumFluidRendererMixin", "ItemFeatureRendererMixin", "CameraMixin", "MachineryBufferAccess"],
+  "client": ["IncludeGraphMixin", "BlockMaterialMappingMixin", "ItemIdMapMixin", "SodiumBlockRendererMixin", "SodiumFluidRendererMixin", "ItemFeatureRendererMixin", "CameraMixin", "LocalPlayerMixin", "MachineryBufferAccess"],
   "injectors": { "defaultRequire": 1 }
 }
