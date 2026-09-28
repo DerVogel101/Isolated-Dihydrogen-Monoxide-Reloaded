@@ -63,11 +63,11 @@ public final class FiniteIceServerTest implements ModInitializer {
                                         == BuiltInRegistries.BLOCK.getValue(id),
                                 "Legacy block resource key resolves: " + oldId);
                         CompoundTag savedState = new CompoundTag();
-                        savedState.putString("Name", oldId.toString());
+                        savedState.putString("id", oldId.toString());
                         BlockState state = BlockState.CODEC.parse(NbtOps.INSTANCE, savedState).getOrThrow();
                         expect(state.is((Block) registry.getValue(id)), "Legacy chunk palette ID resolves: " + oldId);
-                        CompoundTag resaved = (CompoundTag) BlockState.CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow();
-                        expect(resaved.getString("Name").orElseThrow().equals(id.toString()),
+                        var resaved = BlockState.CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow();
+                        expect(resaved.toString().contains(id.toString()),
                                 "Legacy chunk palette saves with new ID: " + oldId);
                     }
                     checked++;

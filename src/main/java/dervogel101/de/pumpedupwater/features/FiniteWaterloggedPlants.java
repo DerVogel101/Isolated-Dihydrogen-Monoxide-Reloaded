@@ -81,7 +81,7 @@ public final class FiniteWaterloggedPlants {
                 || block instanceof LeverBlock
                 || block instanceof PistonBaseBlock
                 || block instanceof PistonHeadBlock
-                || block instanceof RedStoneWireBlock
+                || block instanceof RedstoneWireBlock
                 || block instanceof SpawnerBlock
                 || block instanceof StonecutterBlock
                 || block instanceof TripWireBlock

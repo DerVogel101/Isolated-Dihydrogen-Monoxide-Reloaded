@@ -28,7 +28,7 @@ public final class EarlyWaterloggingRules {
     EarlyWaterloggingRules(Path file) {
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
-            try (CommentedFileConfig config = CommentedFileConfig.of(file)) {
+            try (CommentedFileConfig config = CommentedFileConfig.builder(file).sync().build()) {
                 config.load();
                 boolean changed = false;
                 if (!config.contains("excluded_blocks")) {

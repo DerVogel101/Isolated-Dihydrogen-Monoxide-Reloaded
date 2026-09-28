@@ -1,6 +1,6 @@
 package dervogel101.de.pumpedupwater.block;
 
-import com.mojang.serialization.MapCodec;
+
 import dervogel101.de.pumpedupwater.fluid.ModFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -23,7 +23,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class RainSensorBlock extends WaterloggedTransparentBlock {
-    public static final MapCodec<RainSensorBlock> CODEC = simpleCodec(RainSensorBlock::new);
+
     public static final BooleanProperty INVERTED = BlockStateProperties.INVERTED;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     private static final VoxelShape SHAPE = Shapes.or(
@@ -39,10 +39,6 @@ public final class RainSensorBlock extends WaterloggedTransparentBlock {
         registerDefaultState(defaultBlockState().setValue(INVERTED, false).setValue(POWERED, false));
     }
 
-    @Override
-    public MapCodec<RainSensorBlock> codec() {
-        return CODEC;
-    }
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {

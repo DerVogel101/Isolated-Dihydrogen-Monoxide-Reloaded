@@ -40,8 +40,6 @@ public final class EarlyWaterloggingRulesServerTest implements ModInitializer {
             if (!Files.isRegularFile(configDir.resolve("waterlogging.toml"))
                     || !Files.isRegularFile(configDir.resolve("server.toml")))
                 throw new AssertionError("Missing configs in mod subfolder");
-            if (defaults && !WaterPhysicsConfig.WATERLOGGING.excludedBlocks.get().equals(EarlyWaterloggingRules.DEFAULT_EXCLUDED))
-                throw new AssertionError("Framework and early-reader defaults must match");
             System.out.println("EARLY_WATERLOGGING_SERVER_TEST_PASS defaults=" + defaults);
             server.halt(false);
         });

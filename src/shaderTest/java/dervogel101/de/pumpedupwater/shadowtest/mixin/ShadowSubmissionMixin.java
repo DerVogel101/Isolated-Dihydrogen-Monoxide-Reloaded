@@ -14,14 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 final class ShadowSubmissionMixin {
     @Mixin(WaterPumpRenderer.class)
     public static abstract class Pump {
-        @Inject(method = "submit(Lio/github/SirWashington/WaterPumpRenderer$State;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("RETURN"))
+        @Inject(method = "submit", at = @At("RETURN"))
         private void record(WaterPumpRenderer.State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
             if (ShadowRenderer.ACTIVE) ShadowProbe.pump(state);
         }
     }
     @Mixin(WaterValveRenderer.class)
     public static abstract class Valve {
-        @Inject(method = "submit(Lio/github/SirWashington/WaterValveRenderer$State;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("RETURN"))
+        @Inject(method = "submit", at = @At("RETURN"))
         private void record(WaterValveRenderer.State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
             if (ShadowRenderer.ACTIVE) ShadowProbe.valve(state);
         }

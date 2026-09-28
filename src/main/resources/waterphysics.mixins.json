@@ -6,7 +6,6 @@
   "mixins": [
     "MixinPumpTopology",
     "BlockPropertiesAccessor",
-    "FrameworkConfigPathMixin",
     "LegacyRegistryAliasMixin",
     "MixinAquaticPlantBlock",
     "MixinBlockStateBase",

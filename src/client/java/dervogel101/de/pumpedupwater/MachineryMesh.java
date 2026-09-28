@@ -135,7 +135,7 @@ final class MachineryMesh {
             if (hidden == 63) continue;
             var poses = new PoseStack();
             poses.translate(p.x(), p.y(), p.z());
-            poses.mulPose(Axis.YP.rotationDegrees((float)p.yaw()));
+            poses.rotate(Axis.YP.rotationDegrees((float)p.yaw()));
             var transform = poses.last();
             if ((hidden & 1) == 0) face(result, transform, p, new Vec3(0, 0, p.depth() / 2), new Vec3(p.width(), 0, 0), new Vec3(0, p.height(), 0));
             if ((hidden & 2) == 0) face(result, transform, p, new Vec3(0, 0, -p.depth() / 2), new Vec3(-p.width(), 0, 0), new Vec3(0, p.height(), 0));

@@ -2,7 +2,7 @@
 
 ## Setup
 
-- Minecraft 26.2, Iris 1.11.2, Sodium 0.9.1.
+- Minecraft 26.3, Iris 1.11.6, Sodium 0.9.2 or 0.9.3-alpha.1. Unverified Sodium versions keep Iris material and camera hooks but skip Sodium renderer hooks.
 - General water/ice recognition is independent of the shader pack. Complementary/Euphoria's integrated
   material adapter detects its source interface, without a release-number or whole-file hash allowlist.
 - Shader settings: **RP Support → Integrated PBR+** (`RP_MODE=1`).

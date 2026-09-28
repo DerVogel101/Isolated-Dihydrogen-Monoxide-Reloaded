@@ -1,6 +1,6 @@
 package dervogel101.de.pumpedupwater.block;
 
-import com.mojang.serialization.MapCodec;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -14,7 +14,7 @@ import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.item.context.BlockPlaceContext;
 
 public final class AntiRainGeneratorBlock extends Block implements EntityBlock {
-    public static final MapCodec<AntiRainGeneratorBlock> CODEC = simpleCodec(AntiRainGeneratorBlock::new);
+
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     public AntiRainGeneratorBlock(Properties properties) {
@@ -22,10 +22,6 @@ public final class AntiRainGeneratorBlock extends Block implements EntityBlock {
         registerDefaultState(defaultBlockState().setValue(POWERED, false));
     }
 
-    @Override
-    public MapCodec<AntiRainGeneratorBlock> codec() {
-        return CODEC;
-    }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {

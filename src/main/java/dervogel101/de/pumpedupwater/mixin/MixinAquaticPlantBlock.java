@@ -6,6 +6,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.KelpBlock;
+import net.minecraft.world.level.block.BonemealSource;
 import net.minecraft.world.level.block.SeagrassBlock;
 import net.minecraft.world.level.block.TallSeagrassBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,7 +38,7 @@ abstract class MixinAquaticPlantBlock {
 
     @Inject(method = "isValidBonemealTarget", at = @At("RETURN"), cancellable = true, require = 0)
     private void pumpedupwater$growSeagrassInFiniteWater(LevelReader level, BlockPos pos, BlockState state,
-                                                            CallbackInfoReturnable<Boolean> cir) {
+                                                            BonemealSource source, CallbackInfoReturnable<Boolean> cir) {
         FluidState fluidState = level.getFluidState(pos.above());
         if (!cir.getReturnValue() && fluidState.isFull() && ModFluids.isFiniteWater(fluidState.getType())) {
             cir.setReturnValue(true);

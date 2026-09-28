@@ -84,6 +84,7 @@ loom {
 	}
 
 	runs {
+        server { runDir 'run26.3' }
         if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest || pumpPerformanceTest != null) {
 			server {
                 if (pumpPerformanceTest != null) vmArg "-Dpumpedupwater.pumpSpacing=${providers.gradleProperty('pumpSpacing').getOrElse('5')}"
@@ -98,6 +99,7 @@ loom {
 		}
         client {
             ideConfigGenerated false
+            runDir 'run26.3'
             if (fluidPerformanceTest != null) {
                 runDir "build/performance/runs/${fluidPerformanceTest}"
                 vmArg "-Dpumpedupwater.performanceRun=${fluidPerformanceTest}"
@@ -129,12 +131,12 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	implementation "curse.maven:framework-549225:${project.framework_file_id}"
-	compileOnly "com.electronwill.night-config:toml:3.8.3"
-	testImplementation "com.electronwill.night-config:toml:3.8.3"
+	implementation "com.electronwill.night-config:toml:3.8.3"
+	include "com.electronwill.night-config:toml:3.8.3"
+	include "com.electronwill.night-config:core:3.8.3"
 	// Optional client integration: never bundle Iris/Sodium or require them on servers.
-	clientCompileOnly('maven.modrinth:iris:oaD6KQls') { transitive = false }
-	clientCompileOnly('maven.modrinth:sodium:2Yom1N68') { transitive = false }
+	clientCompileOnly('maven.modrinth:iris:bAdKrpw8') { transitive = false }
+	clientCompileOnly('maven.modrinth:sodium:bAZQdGpg') { transitive = false }
 
 	//modImplementation "carpet:fabric-carpet:${project.minecraft_version}-${project.carpet_core_version}"
 }

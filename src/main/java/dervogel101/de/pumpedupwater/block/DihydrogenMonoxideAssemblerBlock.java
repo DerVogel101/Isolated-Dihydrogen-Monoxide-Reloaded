@@ -1,6 +1,6 @@
 package dervogel101.de.pumpedupwater.block;
 
-import com.mojang.serialization.MapCodec;
+
 import dervogel101.de.pumpedupwater.features.FiniteWaterPhysics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -16,8 +16,7 @@ import net.minecraft.world.level.redstone.Orientation;
 
 /** Creates one full finite-water block per rising redstone edge. */
 public final class DihydrogenMonoxideAssemblerBlock extends Block {
-    public static final MapCodec<DihydrogenMonoxideAssemblerBlock> CODEC =
-            simpleCodec(properties -> new DihydrogenMonoxideAssemblerBlock(properties, false));
+
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     private final boolean muted;
 
@@ -29,8 +28,6 @@ public final class DihydrogenMonoxideAssemblerBlock extends Block {
 
     public boolean muted() { return muted; }
 
-    @Override
-    public MapCodec<DihydrogenMonoxideAssemblerBlock> codec() { return CODEC; }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {

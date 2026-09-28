@@ -1,6 +1,6 @@
 # Pumped Up Isolated Water
 
-This branch targets Minecraft/Fabric 26.2 and Java 25. Finite-water physics use the mod-owned
+This branch targets Minecraft/Fabric 26.3 and Java 25. Finite-water physics use the mod-owned
 `pumpedupwater:finite_water`; vanilla water and lava retain their normal behavior.
 
 This mod builds on [Dihydrogen Monoxide Reloaded](https://github.com/CoolMineman/Dihydrogen-Monoxide-Reloaded)
@@ -13,7 +13,7 @@ version of the mod at a time. Existing config files remain under `config/immersi
 be copied to `config/pumpedupwater` if you want to retain those settings.
 
 ```powershell
-.\gradlew.bat -g .gradle\codex-gradle-9.5.1 clean build --no-daemon
+.\gradlew.bat -g .gradle\codex-gradle-9.6.0 build --no-daemon
 ```
 
 ## Fluid compatibility
@@ -67,7 +67,7 @@ Frozen waterlogged blocks have solid ice collision and vanilla ice slipperiness,
 Breaking the ice thaws the host without harvesting it or dropping its contents, including with Silk Touch.
 Strong block light (above 11) also thaws it; the stored finite-water amount is restored.
 Vanilla water and vanilla-waterlogged blocks retain their existing behavior.
-The isolated regression is `./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PiceTest runServer --args="--nogui" --no-daemon`.
+The isolated regression is `./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PiceTest runServer --args="--nogui" --no-daemon`.
 
 Manual client check: freeze a chest containing items, a potted plant, and a slab in an enclosed,
 outdoor finite-water basin in a cold biome. Check the ice overlay/collision, blocked chest access
@@ -82,16 +82,16 @@ and five water levels should remain. Check that water and ice render above the s
 
 ### Shaders
 
-The optional client integration targets Iris 1.11.2 + Sodium 0.9.1 on Minecraft 26.2,
-with Complementary Unbound r5.9 and Euphoria Patches 1.10.0. Select **RP Support → Integrated PBR+**.
+The optional client integration targets Iris 1.11.6 with Sodium 0.9.2 or 0.9.3-alpha.1 on Minecraft 26.3,
+with Complementary Unbound r5.9.3 and Euphoria Patches 1.10.5. Select **RP Support → Integrated PBR+**.
 No extra resource pack or shader-file edits are needed. Other Iris/Sodium versions or changed
-shader material sources disable this version-sensitive integration and log the reason.
+shader material sources log a warning; unverified Sodium versions disable only the Sodium renderer hooks.
 See [shader compatibility and validation](docs/shader-compatibility.md) for coverage and test commands.
 
 ### Physics
 
-Global physics values are stored in `config/pumpedupwater/server.toml` and can also be edited
-through Configured. They cover flow timing, normal and extended drain-search limits, extinguishing,
+Global physics values are stored in `config/pumpedupwater/server.toml` and take effect after a
+server restart. They cover flow timing, normal and extended drain-search limits, extinguishing,
 door pressure, entity-current strength and speed limits, and piston pressure. Waterlogging rules
 are stored separately in `config/pumpedupwater/waterlogging.toml`.
 
@@ -114,7 +114,7 @@ The chance follows each crop's normal growth probability, including soil conditi
 beetroot/torchflower ticks. Dry crops, levels 3-8, and vanilla fluids receive no bonus.
 
 The isolated dedicated-server regression is available with
-`./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PcropTest runServer --args="--nogui" --no-daemon`
+`./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PcropTest runServer --args="--nogui" --no-daemon`
 (server directory: `build/crop-test-server`, with its own EULA/server settings).
 
 Waterlogging selection is read from its own `config/pumpedupwater/waterlogging.toml` before block states are
@@ -144,7 +144,7 @@ such as `"minecraft:glass_pane"` to enable a previously excluded block. Add sele
 Modded variants must appear in these tags or match an explicit selector; class inheritance alone
 no longer excludes them. Missing files receive these defaults; explicit empty lists stay empty.
 Old config files are not migrated or read. The new waterlogging file uses root-level lists, without
-a `[waterlogging]` table. Both files remain available through Framework's config UI.
+a `[waterlogging]` table. Edit both files directly and restart after changes.
 
 Tags are a startup snapshot of vanilla and installed mods' base resources, including nested tags.
 Resources merge in vanilla-first, then mod-ID order; `replace` clears preceding values.
@@ -157,7 +157,7 @@ on both client and server; server config synchronization happens too late to cha
 Removing support from blocks in an existing world can discard their stored finite water/frozen state.
 
 Run the isolated startup/state-count regression with
-`./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PearlyRulesTest runServer --args="--nogui" --offline`.
+`./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PearlyRulesTest runServer --args="--nogui" --offline`.
 It creates its own config and world under `build/early-rules-test-server`. Use
 `-PearlyRulesTest=defaults` instead to verify first-launch defaults and config creation.
 
@@ -165,7 +165,7 @@ Datapacks can replace or extend these block tags:
 
 | Tag | Default membership | Purpose |
 | --- | --- | --- |
-| `pumpedupwater:extended_drain_path` | Empty; additive to the Configured list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
+| `pumpedupwater:extended_drain_path` | Empty; additive to the TOML list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
 | `pumpedupwater:ignores_own_shape_for_outflow` | Empty | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces. |
 | `pumpedupwater:water_pressure_openable_doors` | `#minecraft:wooden_doors` | Selects doors water may push open from outside to inside. |
 | `pumpedupwater:finite_waterlogging_excluded` | empty | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`. |

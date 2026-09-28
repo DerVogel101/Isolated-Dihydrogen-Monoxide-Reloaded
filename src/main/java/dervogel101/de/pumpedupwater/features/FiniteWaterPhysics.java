@@ -140,7 +140,7 @@ public final class FiniteWaterPhysics {
                     && FiniteWaterloggedPlants.isExtinguishable(previous);
             if (extinguished) {
                 if (previous.getBlock() instanceof CampfireBlock) {
-                    CampfireBlock.dowse(null, level, pos, previous);
+                    CampfireBlock.douse(null, level, pos, previous);
                 } else if (previous.getBlock() instanceof AbstractCandleBlock) {
                     AbstractCandleBlock.extinguish(null, previous, level, pos);
                 }

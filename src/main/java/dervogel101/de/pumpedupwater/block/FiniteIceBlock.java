@@ -1,12 +1,12 @@
 package dervogel101.de.pumpedupwater.block;
 
-import com.mojang.serialization.MapCodec;
+
 import dervogel101.de.pumpedupwater.features.FiniteWaterloggedPlants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -18,14 +18,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 public class FiniteIceBlock extends Block {
-    public static final MapCodec<FiniteIceBlock> CODEC = simpleCodec(FiniteIceBlock::new);
+
 
     public FiniteIceBlock(Properties properties) {
         super(properties);
     }
 
-    @Override
-    protected MapCodec<? extends FiniteIceBlock> codec() { return CODEC; }
 
     public static int frozenLayers(BlockState state) {
         if (dervogel101.de.pumpedupwater.features.FrozenWaterloggedBlocks.isFrozen(state))
@@ -41,10 +39,9 @@ public class FiniteIceBlock extends Block {
     }
 
     @Override
-    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+    public void playerDestroy(ServerLevel level, ServerPlayer player, BlockPos pos, BlockState state,
                               @Nullable BlockEntity entity, ItemStack tool) {
         super.playerDestroy(level, player, pos, state, entity, tool);
-        if (!(level instanceof ServerLevel)) return;
         var silk = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH);
         if (!(this instanceof LayeredFiniteIceBlock) && EnchantmentHelper.getItemEnchantmentLevel(silk, tool) > 0) {
             popResource(level, pos, new ItemStack(asItem()));

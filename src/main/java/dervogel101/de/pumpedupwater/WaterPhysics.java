@@ -7,6 +7,8 @@ import dervogel101.de.pumpedupwater.fluid.ModFluids;
 import dervogel101.de.pumpedupwater.item.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.network.chat.Component;
@@ -17,6 +19,8 @@ public class WaterPhysics implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> WaterPhysicsConfig.loadServer(
+                FabricLoader.getInstance().getConfigDir().resolve("pumpedupwater/server.toml")));
         ModDataComponentTypes.registerDataComponentTypes();
         ModFluids.initialize();
         ModBlocks.initialize();

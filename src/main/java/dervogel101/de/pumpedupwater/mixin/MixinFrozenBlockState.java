@@ -26,7 +26,7 @@ public abstract class MixinFrozenBlockState {
     @Inject(method = "getPistonPushReaction", at = @At("HEAD"), cancellable = true)
     private void pumpedupwater$keepIceInPlace(CallbackInfoReturnable<net.minecraft.world.level.material.PushReaction> ci) {
         if (FrozenWaterloggedBlocks.isFrozen((BlockState) (Object) this))
-            ci.setReturnValue(net.minecraft.world.level.material.PushReaction.BLOCK);
+            ci.setReturnValue(net.minecraft.world.level.material.PushReaction.IMMOVEABLE);
     }
 
     @Inject(method = {"getShape", "getVisualShape", "getBlockSupportShape"},

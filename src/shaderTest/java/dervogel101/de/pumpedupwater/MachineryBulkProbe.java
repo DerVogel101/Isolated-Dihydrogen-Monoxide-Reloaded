@@ -1,8 +1,8 @@
 package dervogel101.de.pumpedupwater;
 
-import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.*;
-import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -45,7 +45,7 @@ final class MachineryBulkProbe {
             compare(snapshot(mesh,poses.last(),sprite,9),snapshot(mesh,poses.last(),sprite,8));
             compare(snapshot(mesh,poses.last(),sprite,0),snapshot(mesh,poses.last(),sprite,5));
             // Normals must also survive a non-uniform outer transform.
-            poses.mulPose(Axis.YP.rotationDegrees(23)); poses.scale(1.2F,.8F,1.1F);
+            poses.mulPose(new org.joml.Matrix4f().rotationY((float) Math.toRadians(23))); poses.scale(1.2F,.8F,1.1F);
             check(mesh,poses.last(),sprite);
             System.out.println("MACHINERY_BULK_PARITY_PASS variants=288 fallback=true transformedNormals=true mixedAndRepeated=true boundaryGuards=true changingMaterials=true");
         } finally {

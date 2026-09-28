@@ -37,22 +37,14 @@
   ],
 
   "depends": {
-    "fabricloader": ">=0.19.3",
-    "minecraft": "~26.2",
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
     "fabric-api": "*",
-    "framework": ">=0.13.26",
     "java": ">=25"
   },
   "suggests": {
-    "configured": ">=2.7.5",
     "modmenu": ">=20.0.0-beta.4",
     "lithium": "*"
   },
-  "custom": {
-    "framework": {
-      "configs": [
-        "dervogel101.de.pumpedupwater.WaterPhysicsConfig"
-      ]
-    }
-  }
+  "custom": {}
 }

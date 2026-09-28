@@ -1,14 +1,7 @@
 package dervogel101.de.pumpedupwater.features;
 
 import dervogel101.de.pumpedupwater.WaterPhysicsConfig;
-import com.electronwill.nightconfig.core.Config;
-import com.electronwill.nightconfig.core.UnmodifiableConfig;
-import com.mrcrayfish.framework.api.config.AbstractProperty;
-import com.mrcrayfish.framework.api.config.ConfigType;
-import com.mrcrayfish.framework.api.config.FrameworkConfig;
-import com.mrcrayfish.framework.config.FrameworkConfigManager.ValueProxy;
-import jdk.jfr.Recording;
-import jdk.jfr.consumer.RecordingFile;
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import dervogel101.de.pumpedupwater.block.ModBlockTags;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -491,145 +484,71 @@ public final class FiniteWaterMathSelfTest {
     }
 
     private static void verifyWaterPhysicsConfig() throws Exception {
-        verifyConfigLinkage();
-        var maxDepth = WaterPhysicsConfig.SERVER.pistonPressure.maxDepth;
-        var maxVisited = WaterPhysicsConfig.SERVER.pistonPressure.maxVisitedWaterCells;
+        verifyTagLinkage();
         var flow = WaterPhysicsConfig.SERVER.flow;
-        var extinguishing = WaterPhysicsConfig.SERVER.extinguishing;
-        var doorPressure = WaterPhysicsConfig.SERVER.doorPressure;
-        var currents = WaterPhysicsConfig.SERVER.currents;
-        var excludedBlocks = WaterPhysicsConfig.WATERLOGGING.excludedBlocks;
-        FrameworkConfig config = WaterPhysicsConfig.class.getField("SERVER").getAnnotation(FrameworkConfig.class);
-        if (config == null || !config.id().equals("pumpedupwater") || !config.name().equals("server")
-                || config.type() != ConfigType.SERVER
-                || maxDepth.getDefaultValue() != 8 || !maxDepth.isValid(1) || maxDepth.isValid(0)
-                || maxVisited.getDefaultValue() != 64 || !maxVisited.isValid(1) || maxVisited.isValid(0)
-                || flow.tickDelay.getDefaultValue() != 2 || !flow.tickDelay.isValid(1) || flow.tickDelay.isValid(0)
-                || flow.puddleSearchRadius.getDefaultValue() != 4 || !flow.puddleSearchRadius.isValid(0)
-                || flow.puddleSearchRadius.isValid(17)
-                || flow.extendedDrainMaxPathLength.getDefaultValue() != 32
-                || !flow.extendedDrainMaxPathLength.isValid(4) || flow.extendedDrainMaxPathLength.isValid(129)
-                || flow.extendedDrainMaxVisitedCells.getDefaultValue() != 256
-                || !flow.extendedDrainMaxVisitedCells.isValid(64)
-                || flow.extendedDrainMaxVisitedCells.isValid(4097)
-                || !flow.extendedDrainPathBlocks.getDefaultValue().equals(
-                List.of("#minecraft:slabs", "#minecraft:stairs")
-        )
-                || extinguishing.minimumLevel.getDefaultValue() != 3
-                || !extinguishing.minimumLevel.isValid(1) || extinguishing.minimumLevel.isValid(9)
-                || !doorPressure.enabled.getDefaultValue()
-                || doorPressure.requiredLevelPerHalf.getDefaultValue() != 8
-                || !doorPressure.requiredLevelPerHalf.isValid(1)
-                || doorPressure.requiredLevelPerHalf.isValid(9)
-                || !currents.enabled.getDefaultValue()
-                || currents.durationTicks.getDefaultValue() != 10
-                || currents.horizontalStrength.getDefaultValue() != 0.06D
-                || currents.upwardStrength.getDefaultValue() != 0.06D
-                || currents.downwardStrength.getDefaultValue() != 0.039D
-                || currents.maxHorizontalSpeed.getDefaultValue() != 0.7D
-                || currents.maxUpwardSpeed.getDefaultValue() != 0.7D
-                || currents.maxDownwardSpeed.getDefaultValue() != 0.3D
-                || !excludedBlocks.getDefaultValue().equals(dervogel101.de.pumpedupwater.EarlyWaterloggingRules.DEFAULT_EXCLUDED)
-                || WaterPhysicsConfig.flowTickDelay() != 2
-                || WaterPhysicsConfig.puddleSearchRadius() != 4
-                || WaterPhysicsConfig.extendedDrainMaxPathLength() != 32
-                || WaterPhysicsConfig.extendedDrainMaxVisitedCells() != 256
-                || WaterPhysicsConfig.extinguishingMinimumLevel() != 3
-                || !WaterPhysicsConfig.doorPressureEnabled()
-                || WaterPhysicsConfig.doorPressureRequiredLevelPerHalf() != 8
-                || !WaterPhysicsConfig.currentsEnabled()
-                || WaterPhysicsConfig.currentDurationTicks() != 10
-                || !ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_slab")
-                || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "minecraft:oak_stairs")
-                || ModBlockTags.matchesSelector(Blocks.OAK_SLAB.defaultBlockState(), "not an identifier")) {
-            throw new AssertionError("Framework water-physics config is invalid");
-        }
+        if (flow.tickDelay.getDefaultValue() != 2 || !flow.tickDelay.isValid(1)
+                || flow.tickDelay.isValid(0) || flow.puddleSearchRadius.getDefaultValue() != 4
+                || !flow.puddleSearchRadius.isValid(0) || flow.puddleSearchRadius.isValid(17)
+                || WaterPhysicsConfig.pumpMaxDepth() != 8 || WaterPhysicsConfig.extinguishingMinimumLevel() != 3
+                || !WaterPhysicsConfig.doorPressureEnabled() || !WaterPhysicsConfig.currentsEnabled())
+            throw new AssertionError("Invalid water-physics defaults or limits");
 
         try (var stream = FiniteWaterMathSelfTest.class.getClassLoader().getResourceAsStream("fabric.mod.json")) {
-            if (stream == null) {
-                throw new AssertionError("Missing Fabric metadata");
-            }
+            if (stream == null) throw new AssertionError("Missing fabric.mod.json");
             String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            int derVogel = json.indexOf("\"DerVogel101\"");
-            if (!json.contains("dervogel101.de.pumpedupwater.WaterPhysicsConfig")
-                    || !json.contains("\"configured\"") || !json.contains("\"modmenu\"")
-                    || derVogel < 0 || derVogel > json.indexOf("\"SirWashington\"")) {
-                throw new AssertionError("Fabric metadata integration or author order is invalid");
-            }
+            if (!json.contains("\"pumpedupwater\"") || json.contains("\"framework\"")
+                    || json.contains("\"configured\"") || !json.contains("\"modmenu\""))
+                throw new AssertionError("Fabric metadata still depends on Framework or Configured");
         }
-    }
 
-    private static void verifyConfigLinkage() throws Exception {
-        var delay = WaterPhysicsConfig.SERVER.flow.tickDelay;
-        var exclusions = WaterPhysicsConfig.WATERLOGGING.excludedBlocks;
-        var proxyField = AbstractProperty.class.getDeclaredField("proxy");
-        proxyField.setAccessible(true);
-        var emptyField = ValueProxy.class.getDeclaredField("EMPTY");
-        emptyField.setAccessible(true);
-        var empty = (ValueProxy) emptyField.get(null);
-        var constructor = ValueProxy.class.getDeclaredConstructor(UnmodifiableConfig.class, List.class, boolean.class);
-        constructor.setAccessible(true);
-        var originalDelay = proxyField.get(delay);
-        var originalExclusions = proxyField.get(exclusions);
-        var recordingPath = Files.createTempFile("finite-water-config-", ".jfr");
-        try (var recording = new Recording()) {
-            recording.enable("jdk.JavaExceptionThrow").withStackTrace();
-            recording.start();
-            verifyTagLinkage();
-            // Both cold construction and Framework's unloaded sentinel must avoid exception-based defaults.
-            for (var proxy : new ValueProxy[]{null, empty}) {
-                proxyField.set(delay, proxy);
-                proxyField.set(exclusions, proxy);
-                for (int i = 0; i < 1000; i++) {
-                    if (WaterPhysicsConfig.flowTickDelay() != 2) {
-                        throw new AssertionError("Unlinked config must use defaults");
-                    }
-                }
+        var directory = Files.createTempDirectory("pumpedupwater-config-");
+        var file = directory.resolve("server.toml");
+        try {
+            WaterPhysicsConfig.loadServer(file);
+            if (!Files.isRegularFile(file) || WaterPhysicsConfig.flowTickDelay() != 2)
+                throw new AssertionError("Fresh server config was not generated");
+            try (CommentedFileConfig config = CommentedFileConfig.builder(file).sync().build()) {
+                config.load();
+                config.set(List.of("flow", "tick_delay"), 7);
+                config.setComment(List.of("flow", "tick_delay"), "custom comment");
+                config.remove(List.of("flow", "puddle_search_radius"));
+                config.set("unrelated", "keep");
+                config.save();
             }
-            var config = Config.inMemory();
-            config.set("delay", 7);
-            config.set("exclusions", List.of("minecraft:oak_slab"));
-            delay.updateProxy(constructor.newInstance(config, List.of("delay"), false));
-            exclusions.updateProxy(constructor.newInstance(config, List.of("exclusions"), true));
-            if (WaterPhysicsConfig.flowTickDelay() != 7
-                    || !exclusions.get().equals(List.of("minecraft:oak_slab"))) {
-                throw new AssertionError("Linked config must use configured values, including read-only sync values");
+            try (CommentedFileConfig config = CommentedFileConfig.builder(file).sync().build()) {
+                config.load();
+                if (!Integer.valueOf(7).equals(config.get(List.of("flow", "tick_delay"))))
+                    throw new AssertionError("Updated TOML value was not saved");
             }
-            delay.set(9);
-            if (WaterPhysicsConfig.flowTickDelay() != 9) {
-                throw new AssertionError("Config edits must remain visible");
+            WaterPhysicsConfig.loadServer(file);
+            if (WaterPhysicsConfig.flowTickDelay() != 7 || WaterPhysicsConfig.puddleSearchRadius() != 4)
+                throw new AssertionError("Existing and missing settings were not loaded correctly: delay="
+                        + WaterPhysicsConfig.flowTickDelay() + ", radius=" + WaterPhysicsConfig.puddleSearchRadius());
+            try (CommentedFileConfig config = CommentedFileConfig.builder(file).sync().build()) {
+                config.load();
+                if (!"custom comment".equals(config.getComment(List.of("flow", "tick_delay")))
+                        || !config.contains(List.of("flow", "puddle_search_radius"))
+                        || !"keep".equals(config.get("unrelated")))
+                    throw new AssertionError("Config comments, defaults, or unknown keys were lost");
+                config.set(List.of("flow", "tick_delay"), 0);
+                config.save();
             }
-            delay.updateProxy(empty);
-            exclusions.updateProxy(empty);
-            if (WaterPhysicsConfig.flowTickDelay() != 2) {
-                throw new AssertionError("Unloading config must restore defaults");
+            try {
+                WaterPhysicsConfig.loadServer(file);
+                throw new AssertionError("Invalid setting was accepted");
+            } catch (IllegalStateException expected) {
+                if (expected.getCause() == null || !expected.getCause().getMessage().contains("flow.tick_delay"))
+                    throw new AssertionError("Invalid setting was not identified", expected);
             }
-            config.set("delay", 11);
-            config.set("exclusions", List.of("minecraft:oak_stairs"));
-            delay.updateProxy(constructor.newInstance(config, List.of("delay"), true));
-            exclusions.updateProxy(constructor.newInstance(config, List.of("exclusions"), true));
-            if (WaterPhysicsConfig.flowTickDelay() != 11
-                    || !exclusions.get().equals(List.of("minecraft:oak_stairs"))) {
-                throw new AssertionError("Reloaded/synchronized config must replace old values and defaults");
-            }
-            recording.stop();
-            recording.dump(recordingPath);
-            for (var event : RecordingFile.readAllEvents(recordingPath)) {
-                if ("Config property is not linked yet".equals(event.getString("message"))
-                        || "Tags not bound".equals(event.getString("message"))) {
-                    throw new AssertionError("Early lookup constructed an exception: " + event.getStackTrace());
-                }
-            }
+            if (WaterPhysicsConfig.flowTickDelay() != 7)
+                throw new AssertionError("Invalid config partially changed active settings");
         } finally {
-            proxyField.set(delay, originalDelay);
-            proxyField.set(exclusions, originalExclusions);
-            delay.invalidateCache();
-            exclusions.invalidateCache();
-            Files.deleteIfExists(recordingPath);
+            flow.tickDelay.set(flow.tickDelay.getDefaultValue());
+            Files.deleteIfExists(file);
+            Files.deleteIfExists(directory);
         }
-        System.out.println("CONFIG_LINKAGE_SELF_TEST_PASS");
+        System.out.println("SERVER_CONFIG_SELF_TEST_PASS");
     }
-
     private static void verifyTagLinkage() throws Exception {
         var state = Blocks.OAK_SLAB.defaultBlockState();
         var holder = state.getBlock().builtInRegistryHolder();

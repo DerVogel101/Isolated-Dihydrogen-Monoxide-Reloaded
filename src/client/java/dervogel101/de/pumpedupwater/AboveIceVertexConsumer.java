@@ -12,6 +12,7 @@ public record AboveIceVertexConsumer(VertexConsumer target, float floor) impleme
     @Override public VertexConsumer setUv(float u, float v) { target.setUv(u, v); return this; }
     @Override public VertexConsumer setUv1(int u, int v) { target.setUv1(u, v); return this; }
     @Override public VertexConsumer setUv2(int u, int v) { target.setUv2(u, v); return this; }
+    @Override public VertexConsumer setUv3(float u, float v) { target.setUv3(u, v); return this; }
     @Override public VertexConsumer setNormal(float x, float y, float z) { target.setNormal(x, y, z); return this; }
     @Override public VertexConsumer setLineWidth(float width) { target.setLineWidth(width); return this; }
 }

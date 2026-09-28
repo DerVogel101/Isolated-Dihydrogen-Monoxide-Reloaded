@@ -75,11 +75,15 @@ public final class WaterPumpRenderer implements BlockEntityRenderer<WaterPumpBlo
             if (part.solid()) continue; // Stationary supports and motor are baked into the chunk mesh.
             poses.pushPose();
             poses.translate(part.x(), part.y(), part.z());
-            poses.mulPose(Axis.ZP.rotationDegrees(part.roll()));
-            poses.mulPose(Axis.XP.rotationDegrees(part.pitch()));
+            poses.rotate(Axis.ZP.rotationDegrees(part.roll()));
+            poses.rotate(Axis.XP.rotationDegrees(part.pitch()));
             poses.scale(part.width(), part.height(), part.depth());
             collector.submitModelPart(cube, poses, RenderTypes.entitySolid(TEXTURE), state.lightCoords,
-                    OverlayTexture.NO_OVERLAY, sprite, part.color(), state.breakProgress);
+                    OverlayTexture.NO_OVERLAY, sprite, part.color());
+            if (state.breakProgress != null) {
+                collector.submitCrumblingOverlay(cube, poses, RenderTypes.entitySolid(TEXTURE), state.lightCoords,
+                        OverlayTexture.NO_OVERLAY, part.color(), state.breakProgress);
+            }
             poses.popPose();
         }
         poses.popPose();

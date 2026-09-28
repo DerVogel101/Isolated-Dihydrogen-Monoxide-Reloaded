@@ -1,40 +1,25 @@
 package dervogel101.de.pumpedupwater;
 
-import com.mrcrayfish.framework.api.config.AbstractProperty;
-import com.mrcrayfish.framework.api.config.ConfigProperty;
-import com.mrcrayfish.framework.api.config.ConfigType;
-import com.mrcrayfish.framework.api.config.BoolProperty;
-import com.mrcrayfish.framework.api.config.DoubleProperty;
-import com.mrcrayfish.framework.api.config.EnumProperty;
-import com.mrcrayfish.framework.api.config.FrameworkConfig;
-import com.mrcrayfish.framework.api.config.IntProperty;
-import com.mrcrayfish.framework.api.config.ListProperty;
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import dervogel101.de.pumpedupwater.ConfigProperties.AbstractProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.BoolProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.ConfigProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.DoubleProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.EnumProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.IntProperty;
+import dervogel101.de.pumpedupwater.ConfigProperties.ListProperty;
 import dervogel101.de.pumpedupwater.block.ModBlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class WaterPhysicsConfig {
-    private static final MethodHandle IS_LINKED;
-
-    static {
-        try {
-            // Framework keeps this check private; resolve it once, including its unloaded-proxy state.
-            IS_LINKED = MethodHandles.privateLookupIn(AbstractProperty.class, MethodHandles.lookup())
-                    .findVirtual(AbstractProperty.class, "isLinked", MethodType.methodType(boolean.class));
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    @FrameworkConfig(id = WaterPhysics.MODID, name = "server", type = ConfigType.SERVER)
     public static final Values SERVER = new Values();
-
-    @FrameworkConfig(id = WaterPhysics.MODID, name = "waterlogging", type = ConfigType.UNIVERSAL)
-    public static final Waterlogging WATERLOGGING = new Waterlogging();
 
     private WaterPhysicsConfig() {
     }
@@ -190,13 +175,44 @@ public final class WaterPhysicsConfig {
         return get(SERVER.currents.maxDownwardSpeed);
     }
 
-    private static <T> T get(AbstractProperty<T> property) {
+    private static <T> T get(AbstractProperty<T> property) { return property.get(); }
+
+    public static void loadServer(Path file) {
         try {
-            return (boolean) IS_LINKED.invokeExact(property) ? property.get() : property.getDefaultValue();
-        } catch (RuntimeException | Error e) {
-            throw e;
-        } catch (Throwable e) {
-            throw new AssertionError("Cannot check Framework config linkage", e);
+            Files.createDirectories(file.toAbsolutePath().getParent());
+            try (CommentedFileConfig config = CommentedFileConfig.builder(file).sync().build()) {
+                config.load();
+                boolean changed = false;
+                List<Runnable> updates = new ArrayList<>();
+                for (Field groupField : Values.class.getFields()) {
+                    ConfigProperty groupInfo = groupField.getAnnotation(ConfigProperty.class);
+                    if (groupInfo == null) continue;
+                    Object group = groupField.get(SERVER);
+                    boolean newGroup = !config.contains(groupInfo.name());
+                    for (Field field : group.getClass().getFields()) {
+                        ConfigProperty info = field.getAnnotation(ConfigProperty.class);
+                        if (info == null) continue;
+                        AbstractProperty<?> property = (AbstractProperty<?>) field.get(group);
+                        List<String> key = List.of(groupInfo.name(), info.name());
+                        if (!config.contains(key)) {
+                            config.set(key, property.tomlDefault());
+                            config.setComment(key, info.comment());
+                            changed = true;
+                        }
+                        try {
+                            Object value = property.parse(config.get(key));
+                            updates.add(() -> property.setParsed(value));
+                        } catch (IllegalArgumentException e) {
+                            throw new IllegalArgumentException("Invalid setting " + String.join(".", key) + ": " + e.getMessage(), e);
+                        }
+                    }
+                    if (newGroup) config.setComment(groupInfo.name(), groupInfo.comment());
+                }
+                if (changed) config.save();
+                updates.forEach(Runnable::run);
+            }
+        } catch (IOException | ReflectiveOperationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot load server config from " + file, e);
         }
     }
 
@@ -357,22 +373,6 @@ public final class WaterPhysicsConfig {
 
         @ConfigProperty(name = "max_downward_speed", comment = "Maximum downward speed magnitude caused by currents")
         public final DoubleProperty maxDownwardSpeed = DoubleProperty.create(0.3D, 0.0D, 2.0D);
-    }
-
-    public static final class Waterlogging {
-        @ConfigProperty(name = "debug", comment = "Log blocks whose final state count exceeds debug_state_threshold during startup.", gameRestart = true)
-        public final BoolProperty debug = BoolProperty.create(false);
-        @ConfigProperty(name = "debug_state_threshold", comment = "Only log state counts strictly above this threshold when debug is true.", gameRestart = true)
-        public final IntProperty debugStateThreshold = IntProperty.create(6480, 0, Integer.MAX_VALUE);
-        @ConfigProperty(
-                name = "excluded_blocks",
-                comment = "Early exclusions: block IDs, @modid, #bundled:block_tag, or * wildcards. Full game restart required; client and server must agree.",
-                gameRestart = true
-        )
-        public final ListProperty<String> excludedBlocks = ListProperty.create(ListProperty.STRING,
-                () -> EarlyWaterloggingRules.DEFAULT_EXCLUDED);
-        @ConfigProperty(name = "included_blocks", comment = "Overrides excluded_blocks for supported blocks, using the same selectors. Full game restart required.", gameRestart = true)
-        public final ListProperty<String> includedBlocks = ListProperty.create(ListProperty.STRING);
     }
 
     public static final class Pump {

@@ -4,7 +4,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.GameType;
@@ -43,7 +42,7 @@ public final class ShaderClientProbe implements ClientModInitializer {
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (++totalTicks > 2400) throw new AssertionError("Shader world probe timed out");
-            if (!started && client.gui.screen() instanceof TitleScreen) {
+            if (!started && totalTicks > 40) {
                 started = true;
                 client.createWorldOpenFlows().createFreshLevel("shader-probe-" + System.currentTimeMillis(),
                         new LevelSettings("Shader probe", GameType.CREATIVE,

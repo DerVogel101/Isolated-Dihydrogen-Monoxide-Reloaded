@@ -1,6 +1,6 @@
 package dervogel101.de.pumpedupwater.block;
 
-import com.mojang.serialization.MapCodec;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -20,7 +20,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class WaterValveBlock extends WaterloggedTransparentBlock implements EntityBlock {
-    public static final MapCodec<WaterValveBlock> CODEC = simpleCodec(WaterValveBlock::new);
+
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
@@ -29,8 +29,6 @@ public final class WaterValveBlock extends WaterloggedTransparentBlock implement
         registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH).setValue(POWERED, false));
     }
 
-    @Override
-    public MapCodec<WaterValveBlock> codec() { return CODEC; }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
