@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "immersivefluids",
+  "id": "pumpedupwater",
   "version": "${version}",
 
-  "name": "Immersive Fluids",
-  "description": "Physics based behaviour for your minecraft fluids.",
+  "name": "Pumped Up Isolated Water",
+  "description": "Isolated finite water with pumps, weather interactions, and pressure-driven flow.",
   "authors": [
-    "DerVogel101",
+    "DerVogel101"
+  ],
+  "contributors": [
     "SirWashington",
     "Ewoudje",
     "Ruby",
@@ -18,20 +20,20 @@
   },
 
   "license": "LGPL-3.0",
-  "icon": "assets/immersivefluids/icon.png",
+  "icon": "assets/pumpedupwater/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "io.github.SirWashington.WaterPhysics"
+      "dervogel101.de.pumpedupwater.WaterPhysics"
     ],
     "client": [
-      "io.github.SirWashington.WaterPhysicsClient"
+      "dervogel101.de.pumpedupwater.WaterPhysicsClient"
     ]
   },
   "mixins": [
     "waterphysics.mixins.json",
-    { "config": "immersivefluids.iris.mixins.json", "environment": "client" }
+    { "config": "pumpedupwater.iris.mixins.json", "environment": "client" }
   ],
 
   "depends": {
@@ -49,7 +51,7 @@
   "custom": {
     "framework": {
       "configs": [
-        "io.github.SirWashington.WaterPhysicsConfig"
+        "dervogel101.de.pumpedupwater.WaterPhysicsConfig"
       ]
     }
   }

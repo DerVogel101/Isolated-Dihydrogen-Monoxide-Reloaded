@@ -1,0 +1,6 @@
+{
+  "parent": "pumpedupwater:block/anti_rain_generator_off",
+  "textures": {
+    "beacon": "pumpedupwater:block/beacon"
+  }
+}

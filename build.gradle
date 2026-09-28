@@ -86,13 +86,13 @@ loom {
 	runs {
         if (dripstoneTest || rainfallTest || rainfallReloadSeed || cropTest || sensorTest || iceTest || pumpTest || valveTest || generatorTest || fireTest || fluidOptimizationTest || pumpPerformanceTest != null) {
 			server {
-                if (pumpPerformanceTest != null) vmArg "-Dimmersivefluids.pumpSpacing=${providers.gradleProperty('pumpSpacing').getOrElse('5')}"
+                if (pumpPerformanceTest != null) vmArg "-Dpumpedupwater.pumpSpacing=${providers.gradleProperty('pumpSpacing').getOrElse('5')}"
 				if (fluidOptimizationTest) {
 					vmArg "-Djava.io.tmpdir=${file('build/fluid-optimization-test-server').absolutePath}"
 					vmArg "-XX:FlightRecorderOptions=repository=${file('build/fluid-optimization-test-server').absolutePath}"
 				}
-				if (earlyRulesTest) vmArg "-Dimmersivefluids.testDefaultRules=${earlyRulesDefaults}"
-            if (rainfallReloadSeed) vmArg '-Dimmersivefluids.rainfallReloadSeed=true'
+				if (earlyRulesTest) vmArg "-Dpumpedupwater.testDefaultRules=${earlyRulesDefaults}"
+            if (rainfallReloadSeed) vmArg '-Dpumpedupwater.rainfallReloadSeed=true'
                 runDir pumpPerformanceTest != null ? "build/performance/pumps/${pumpPerformanceTest}" : fluidOptimizationTest ? 'build/fluid-optimization-test-server' : earlyRulesTest ? 'build/early-rules-test-server' : fireTest ? 'build/fire-test-server' : generatorTest ? 'build/generator-test-server' : valveTest ? 'build/valve-test-server' : pumpTest ? 'build/pump-test-server' : iceTest ? 'build/ice-test-server' : sensorTest ? 'build/sensor-test-server' : cropTest ? 'build/crop-test-server' : (rainfallTest || rainfallReloadSeed) ? 'build/rainfall-test-server' : 'build/dripstone-test-server'
 			}
 		}
@@ -100,21 +100,21 @@ loom {
             ideConfigGenerated false
             if (fluidPerformanceTest != null) {
                 runDir "build/performance/runs/${fluidPerformanceTest}"
-                vmArg "-Dimmersivefluids.performanceRun=${fluidPerformanceTest}"
-                vmArg "-Dimmersivefluids.performanceAllocations=${providers.gradleProperty('performanceAllocations').isPresent()}"
-                vmArg "-Dimmersivefluids.performanceClear=${providers.gradleProperty('performanceClear').isPresent()}"
+                vmArg "-Dpumpedupwater.performanceRun=${fluidPerformanceTest}"
+                vmArg "-Dpumpedupwater.performanceAllocations=${providers.gradleProperty('performanceAllocations').isPresent()}"
+                vmArg "-Dpumpedupwater.performanceClear=${providers.gradleProperty('performanceClear').isPresent()}"
             }
 			if (shaderTest != null) runDir "build/shader-test-client/${shaderTest}"
-			if (shaderTest != null && !(shaderTest in ['vanilla', 'sodium', 'iris'])) vmArg '-Dimmersivefluids.shaderProbePack=true'
+			if (shaderTest != null && !(shaderTest in ['vanilla', 'sodium', 'iris'])) vmArg '-Dpumpedupwater.shaderProbePack=true'
 			if (shaderTest != null && (shaderTest.startsWith('complementary') || shaderTest.startsWith('euphoria')))
-				vmArg '-Dimmersivefluids.shaderProbeIntegrated=true'
-			if (shaderTest in ['bsl', 'bliss']) vmArg '-Dimmersivefluids.shaderProbeLabPbr=true'
-			if (shaderTest == 'complementary-static') vmArg '-Dimmersivefluids.shaderProbeNoEntityShadows=true'
+				vmArg '-Dpumpedupwater.shaderProbeIntegrated=true'
+			if (shaderTest in ['bsl', 'bliss']) vmArg '-Dpumpedupwater.shaderProbeLabPbr=true'
+			if (shaderTest == 'complementary-static') vmArg '-Dpumpedupwater.shaderProbeNoEntityShadows=true'
 		}
 	}
 
 	mods {
-		"immersivefluids" {
+		"pumpedupwater" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
@@ -160,55 +160,55 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand "version": expandedModVersion
         if (pumpPerformanceTest != null) {
-            filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"', '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.PumpPerformanceServerTest"') }
+            filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"', '"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.PumpPerformanceServerTest"') }
         }
         if (fluidPerformanceTest != null) {
-            filter { line -> line.replace('"io.github.SirWashington.WaterPhysicsClient"',
-                    '"io.github.SirWashington.WaterPhysicsClient", "io.github.SirWashington.FluidPerformanceClient"') }
+            filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysicsClient"',
+                    '"dervogel101.de.pumpedupwater.WaterPhysicsClient", "dervogel101.de.pumpedupwater.FluidPerformanceClient"') }
         }
 		if (fluidOptimizationTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"', '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FluidOptimizationServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"', '"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.FluidOptimizationServerTest"') }
 		}
 		if (shaderTest != null) {
-			filter { line -> line.replace('"mixins": [', '"mixins": [ { "config": "immersivefluids.shadow-test.mixins.json", "environment": "client" },') }
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysicsClient"',
-				'"io.github.SirWashington.WaterPhysicsClient", "io.github.SirWashington.ShaderClientProbe"') }
+			filter { line -> line.replace('"mixins": [', '"mixins": [ { "config": "pumpedupwater.shadow-test.mixins.json", "environment": "client" },') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysicsClient"',
+				'"dervogel101.de.pumpedupwater.WaterPhysicsClient", "dervogel101.de.pumpedupwater.ShaderClientProbe"') }
 		}
         if (valveTest) {
-            filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-                    '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterValveServerTest"') }
+            filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+                    '"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.WaterValveServerTest"') }
         }
 		if (generatorTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DihydrogenMonoxideAssemblerServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.DihydrogenMonoxideAssemblerServerTest"') }
 		}
 		if (fireTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteWaterFireServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.FiniteWaterFireServerTest"') }
 		}
 		if (pumpTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.WaterPumpServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.WaterPumpServerTest"') }
 		}
 		if (iceTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					earlyRulesTest ? '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.EarlyWaterloggingRulesServerTest"' : '"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.FiniteIceServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					earlyRulesTest ? '"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.EarlyWaterloggingRulesServerTest"' : '"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.FiniteIceServerTest"') }
 		}
 		if (dripstoneTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.DripstoneServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.DripstoneServerTest"') }
 		}
 		if (rainfallTest || rainfallReloadSeed) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.RainfallServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.RainfallServerTest"') }
 		}
 		if (cropTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.CropFertilizationServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.CropFertilizationServerTest"') }
 		}
 		if (sensorTest) {
-			filter { line -> line.replace('"io.github.SirWashington.WaterPhysics"',
-					'"io.github.SirWashington.WaterPhysics", "io.github.SirWashington.features.RainSensorServerTest"') }
+			filter { line -> line.replace('"dervogel101.de.pumpedupwater.WaterPhysics"',
+					'"dervogel101.de.pumpedupwater.WaterPhysics", "dervogel101.de.pumpedupwater.features.RainSensorServerTest"') }
 		}
 	}
 }
@@ -220,7 +220,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register("physicsSelfTest", JavaExec) {
 	dependsOn testClasses
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = "io.github.SirWashington.features.FiniteWaterMathSelfTest"
+	mainClass = "dervogel101.de.pumpedupwater.features.FiniteWaterMathSelfTest"
 	// Keep the regression recording out of Windows' potentially inaccessible system temp directory.
 	systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
 	jvmArgs "-XX:FlightRecorderOptions=repository=${temporaryDir.absolutePath}"
@@ -241,7 +241,7 @@ sourceSets {
 tasks.register('iceRenderSelfTest', JavaExec) {
 	dependsOn clientTestClasses
 	classpath = sourceSets.clientTest.runtimeClasspath
-	mainClass = 'io.github.SirWashington.IceRenderSelfTest'
+	mainClass = 'dervogel101.de.pumpedupwater.IceRenderSelfTest'
 }
 
 check.dependsOn physicsSelfTest, iceRenderSelfTest
@@ -249,7 +249,7 @@ check.dependsOn physicsSelfTest, iceRenderSelfTest
 tasks.register('earlyRulesSelfTest', JavaExec) {
     dependsOn testClasses
     classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'io.github.SirWashington.EarlyWaterloggingRulesSelfTest'
+    mainClass = 'dervogel101.de.pumpedupwater.EarlyWaterloggingRulesSelfTest'
     systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
     doFirst { temporaryDir.mkdirs() }
 }
@@ -259,15 +259,15 @@ if (earlyRulesTest) {
     tasks.named('runServer') {
         doFirst {
             def run = file('build/early-rules-test-server')
-            new File(run, 'config/immersivefluids').mkdirs()
+            new File(run, 'config/pumpedupwater').mkdirs()
             new File(run, 'eula.txt').text = 'eula=true\n'
             new File(run, 'server.properties').text = 'online-mode=false\nserver-ip=127.0.0.1\nserver-port=0\nview-distance=2\nsimulation-distance=2\n'
-            def rules = new File(run, 'config/immersivefluids/waterlogging.toml')
+            def rules = new File(run, 'config/pumpedupwater/waterlogging.toml')
             if (earlyRulesDefaults) {
                 if (rules.exists() && !rules.delete()) throw new GradleException('Cannot reset isolated rules fixture')
             } else {
-                rules.text = '''excluded_blocks = ['minecraft:barrier', 'minecraft:beacon', '#minecraft:leaves', '#minecraft:shulker_boxes', '#minecraft:walls', '#c:glass_panes', '#minecraft:wooden_slabs', 'minecraft:*_stairs', '@immersivefluids']
-included_blocks = ['minecraft:oak_slab', '#minecraft:wooden_stairs', 'immersivefluids:*', 'minecraft:oak_leaves', 'minecraft:cobblestone_wall', 'minecraft:glass_pane', 'minecraft:barrier', 'minecraft:beacon', 'minecraft:shulker_box']
+                rules.text = '''excluded_blocks = ['minecraft:barrier', 'minecraft:beacon', '#minecraft:leaves', '#minecraft:shulker_boxes', '#minecraft:walls', '#c:glass_panes', '#minecraft:wooden_slabs', 'minecraft:*_stairs', '@pumpedupwater']
+included_blocks = ['minecraft:oak_slab', '#minecraft:wooden_stairs', 'pumpedupwater:*', 'minecraft:oak_leaves', 'minecraft:cobblestone_wall', 'minecraft:glass_pane', 'minecraft:barrier', 'minecraft:beacon', 'minecraft:shulker_box']
 debug = true
 debug_state_threshold = 6480
 '''
@@ -290,7 +290,7 @@ debug_state_threshold = 6480
 tasks.register('shaderSelfTest', JavaExec) {
 	dependsOn clientTestClasses
 	classpath = sourceSets.clientTest.runtimeClasspath + sourceSets.client.compileClasspath
-	mainClass = 'io.github.SirWashington.ShaderSelfTest'
+	mainClass = 'dervogel101.de.pumpedupwater.ShaderSelfTest'
 	if (providers.gradleProperty('shaderPack').isPresent()) args providers.gradleProperty('shaderPack').get()
 }
 check.dependsOn shaderSelfTest
@@ -298,7 +298,7 @@ check.dependsOn shaderSelfTest
 tasks.register('pumpGeometrySelfTest', JavaExec) {
 	dependsOn clientTestClasses
 	classpath = sourceSets.clientTest.runtimeClasspath
-	mainClass = 'io.github.SirWashington.PumpGeometrySelfTest'
+	mainClass = 'dervogel101.de.pumpedupwater.PumpGeometrySelfTest'
 }
 check.dependsOn pumpGeometrySelfTest
 
@@ -385,6 +385,7 @@ jar {
 	from("LICENSE") {
 		rename { "${it}_${licenseArchiveName}"}
 	}
+	from("NOTICE.md")
 }
 
 // configure the maven publication
@@ -407,7 +408,7 @@ publishing {
 tasks.register('valveGeometrySelfTest', JavaExec) {
     dependsOn clientTestClasses
     classpath = sourceSets.clientTest.runtimeClasspath
-    mainClass = 'io.github.SirWashington.ValveGeometrySelfTest'
+    mainClass = 'dervogel101.de.pumpedupwater.ValveGeometrySelfTest'
 }
 check.dependsOn valveGeometrySelfTest
 
@@ -444,6 +445,6 @@ if (fireTest) {
 tasks.register('machineryMeshSelfTest', JavaExec) {
     dependsOn clientTestClasses
     classpath = sourceSets.clientTest.runtimeClasspath
-    mainClass = 'io.github.SirWashington.MachineryMeshSelfTest'
+    mainClass = 'dervogel101.de.pumpedupwater.MachineryMeshSelfTest'
 }
 check.dependsOn machineryMeshSelfTest

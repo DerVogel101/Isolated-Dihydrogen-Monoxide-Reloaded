@@ -5,7 +5,7 @@ The pump supplies structure, placement, animation, contact damage and finite-wat
 Find **Water Pump** in the Redstone creative tab, or use:
 
 ```mcfunction
-/give @s immersivefluids:water_pump 27
+/give @s pumpedupwater:water_pump 27
 ```
 
 - Place a single block, or complete a 2x2 or 3x3 square with every block facing
@@ -91,7 +91,7 @@ Find **Water Pump** in the Redstone creative tab, or use:
 
 ## Configuration
 
-The server configuration `immersivefluids.server.toml` contains a `[pump]` section:
+The server configuration `pumpedupwater.server.toml` contains a `[pump]` section:
 
 ```toml
 max_depth = 8

@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "inverted=false": { "model": "pumpedupwater:block/rain_sensor" },
+    "inverted=true": { "model": "pumpedupwater:block/rain_sensor_inverted" }
+  }
+}

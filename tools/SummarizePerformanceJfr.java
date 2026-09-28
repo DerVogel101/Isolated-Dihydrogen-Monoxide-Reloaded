@@ -30,7 +30,7 @@ class SummarizePerformanceJfr {
                     if (event.getStackTrace() != null) for (var frame : event.getStackTrace().getFrames()) {
                         var method = frame.getMethod();
                         String name = method.getType().getName();
-                        if (name.startsWith("io.github.SirWashington.")) {
+                        if (name.startsWith("dervogel101.de.pumpedupwater.")) {
                             names.add(name.substring(name.lastIndexOf('.') + 1) + "." + method.getName());
                         }
                     }
@@ -40,7 +40,7 @@ class SummarizePerformanceJfr {
                     Set<String> methods = new HashSet<>();
                     for (var frame : event.getStackTrace().getFrames()) {
                         var method = frame.getMethod();
-                        if (method.getType().getName().startsWith("io.github.SirWashington.")) {
+                        if (method.getType().getName().startsWith("dervogel101.de.pumpedupwater.")) {
                             methods.add(method.getType().getName() + "." + method.getName());
                         }
                     }

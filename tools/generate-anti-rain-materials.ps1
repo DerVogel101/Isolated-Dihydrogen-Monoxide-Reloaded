@@ -1,6 +1,6 @@
 param(
     [string]$Source = (Join-Path (Split-Path -Parent $PSScriptRoot) 'block_bench'),
-    [string]$Destination = (Join-Path (Split-Path -Parent $PSScriptRoot) 'src/main/resources/assets/immersivefluids/textures/block')
+    [string]$Destination = (Join-Path (Split-Path -Parent $PSScriptRoot) 'src/main/resources/assets/pumpedupwater/textures/block')
 )
 
 Add-Type -AssemblyName System.Drawing

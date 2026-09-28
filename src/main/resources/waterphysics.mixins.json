@@ -1,12 +1,13 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "io.github.SirWashington.mixin",
+  "package": "dervogel101.de.pumpedupwater.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "MixinPumpTopology",
     "BlockPropertiesAccessor",
     "FrameworkConfigPathMixin",
+    "LegacyRegistryAliasMixin",
     "MixinAquaticPlantBlock",
     "MixinBlockStateBase",
     "MixinBucketItem",

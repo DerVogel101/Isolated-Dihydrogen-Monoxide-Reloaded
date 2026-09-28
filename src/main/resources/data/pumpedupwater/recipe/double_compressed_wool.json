@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["###", "###", "###"],
+  "key": {"#": "pumpedupwater:compressed_wool"},
+  "result": {"id": "pumpedupwater:double_compressed_wool"}
+}

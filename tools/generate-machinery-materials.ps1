@@ -2,7 +2,7 @@ param([Parameter(Mandatory = $true)][string]$MinecraftJar)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.Drawing
-$destination = Join-Path $PSScriptRoot '../src/main/resources/assets/immersivefluids/textures/block'
+$destination = Join-Path $PSScriptRoot '../src/main/resources/assets/pumpedupwater/textures/block'
 New-Item -ItemType Directory -Force $destination | Out-Null
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $MinecraftJar))
 try {

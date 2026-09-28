@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["#R#", "WCW", "#B#"],
+  "key": {
+    "#": "pumpedupwater:insulator_shard",
+    "R": "pumpedupwater:rain_sensor",
+    "W": "pumpedupwater:water_pump",
+    "C": "minecraft:conduit",
+    "B": "minecraft:beacon"
+  },
+  "result": { "id": "pumpedupwater:anti_rain_generator" }
+}

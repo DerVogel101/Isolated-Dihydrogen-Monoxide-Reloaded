@@ -1,0 +1,19 @@
+{
+  "death.attack.pumpedupwater.water_pump": "%1$s was caught in a water pump",
+  "block.pumpedupwater.water_valve": "Water Valve",
+  "block.pumpedupwater.water_pump": "Water Pump",
+  "block.pumpedupwater.muted_water_pump": "Muted Water Pump",
+  "block.pumpedupwater.generator": "Isolated Water Assembler",
+  "block.pumpedupwater.muted_generator": "Muted Isolated Water Assembler",
+  "item.pumpedupwater.compressed_wool": "Compressed Wool",
+  "item.pumpedupwater.double_compressed_wool": "Double Compressed Wool",
+  "item.pumpedupwater.insulator_shard": "Insulator Shard",
+  "block.pumpedupwater.finite_ice": "Finite Ice",
+  "block.pumpedupwater.layered_finite_ice": "Layered Finite Ice",
+  "block.pumpedupwater.rain_sensor": "Rain / Water Sensor",
+  "block.pumpedupwater.anti_rain_generator": "Anti-Rain Generator",
+  "item.pumpedupwater.precision_bucket": "Precision Bucket",
+  "item.pumpedupwater.finite_water_bucket": "Finite Water Bucket",
+  "block.pumpedupwater.finite_water": "Finite Water",
+  "itemGroup.pumpedupwater": "Pumped Up Isolated Water"
+}

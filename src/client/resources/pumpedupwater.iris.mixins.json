@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dervogel101.de.pumpedupwater.compat.iris.mixin",
+  "plugin": "dervogel101.de.pumpedupwater.compat.iris.IrisMixinPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["IncludeGraphMixin", "BlockMaterialMappingMixin", "ItemIdMapMixin", "SodiumBlockRendererMixin", "SodiumFluidRendererMixin", "ItemFeatureRendererMixin", "CameraMixin", "LocalPlayerMixin", "MachineryBufferAccess"],
+  "injectors": { "defaultRequire": 1 }
+}

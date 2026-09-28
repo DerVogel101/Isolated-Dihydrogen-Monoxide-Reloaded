@@ -1,9 +1,16 @@
-# Dihydrogen-Monoxide-Reloaded
-
-https://www.curseforge.com/minecraft/mc-mods/dihydrogen-monoxide-reloaded
+# Pumped Up Isolated Water
 
 This branch targets Minecraft/Fabric 26.2 and Java 25. Finite-water physics use the mod-owned
-`immersivefluids:finite_water`; vanilla water and lava retain their normal behavior.
+`pumpedupwater:finite_water`; vanilla water and lava retain their normal behavior.
+
+This mod builds on [Dihydrogen Monoxide Reloaded](https://github.com/CoolMineman/Dihydrogen-Monoxide-Reloaded)
+and later work by SirWashington, Ewoudje, and Ruby. Their contributions remain credited in
+`fabric.mod.json`. The code is distributed under [LGPL-3.0](LICENSE).
+
+The mod ID is now `pumpedupwater`. Saved blocks with `immersivefluids` IDs resolve to their new
+registry entries when loaded; keep a backup before opening an existing world. Install only one
+version of the mod at a time. Existing config files remain under `config/immersivefluids` and can
+be copied to `config/pumpedupwater` if you want to retain those settings.
 
 ```powershell
 .\gradlew.bat -g .gradle\codex-gradle-9.5.1 clean build --no-daemon
@@ -18,14 +25,14 @@ standard `#minecraft:lava` tag also produce the extinguishing sound and smoke ef
 
 ## Anti-rain generator
 
-While powered by redstone, `immersivefluids:anti_rain_generator` prevents new finite-water rain
+While powered by redstone, `pumpedupwater:anti_rain_generator` prevents new finite-water rain
 collection in its own chunk and the eight surrounding chunks. It does not stop Minecraft weather
 or rain rendering, alter vanilla or modded fluids or precipitation mechanics, or disable existing
 finite-water drying and evaporation.
 
 ## Water valve
 
-Place `immersivefluids:water_valve` blocks facing the same direction in a 1x1, 2x2, or 3x3 square.
+Place `pumpedupwater:water_valve` blocks facing the same direction in a 1x1, 2x2, or 3x3 square.
 All six directions are supported. Redstone at any member opens the whole valve; removing power closes it.
 A full transition takes 140 ticks: 60 to swing the leaves, 60 to extend the telescoping plates,
 and 20 to extend the short top/bottom bolts from their drive bases. Opening reverses this order.
@@ -83,10 +90,10 @@ See [shader compatibility and validation](docs/shader-compatibility.md) for cove
 
 ### Physics
 
-Global physics values are stored in `config/immersivefluids/server.toml` and can also be edited
+Global physics values are stored in `config/pumpedupwater/server.toml` and can also be edited
 through Configured. They cover flow timing, normal and extended drain-search limits, extinguishing,
 door pressure, entity-current strength and speed limits, and piston pressure. Waterlogging rules
-are stored separately in `config/immersivefluids/waterlogging.toml`.
+are stored separately in `config/pumpedupwater/waterlogging.toml`.
 
 Hanging pointed dripstone supplied by exactly eight finite-water units above its support block
 produces one finite-water unit per successful drip, without consuming the source. Drips create
@@ -110,7 +117,7 @@ The isolated dedicated-server regression is available with
 `./gradlew.bat -g .gradle/codex-gradle-9.5.1 -PcropTest runServer --args="--nogui" --no-daemon`
 (server directory: `build/crop-test-server`, with its own EULA/server settings).
 
-Waterlogging selection is read from its own `config/immersivefluids/waterlogging.toml` before block states are
+Waterlogging selection is read from its own `config/pumpedupwater/waterlogging.toml` before block states are
 constructed. Exclusions prevent the extra water/frozen states and their initialization work.
 The separate inclusion list is applied afterward and wins over configured exclusions:
 
@@ -158,11 +165,11 @@ Datapacks can replace or extend these block tags:
 
 | Tag | Default membership | Purpose |
 | --- | --- | --- |
-| `immersivefluids:extended_drain_path` | Empty; additive to the Configured list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
-| `immersivefluids:ignores_own_shape_for_outflow` | Empty | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces. |
-| `immersivefluids:water_pressure_openable_doors` | `#minecraft:wooden_doors` | Selects doors water may push open from outside to inside. |
-| `immersivefluids:finite_waterlogging_excluded` | empty | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`. |
-| `immersivefluids:finite_water_extinguishable` | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level. |
+| `pumpedupwater:extended_drain_path` | Empty; additive to the Configured list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
+| `pumpedupwater:ignores_own_shape_for_outflow` | Empty | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces. |
+| `pumpedupwater:water_pressure_openable_doors` | `#minecraft:wooden_doors` | Selects doors water may push open from outside to inside. |
+| `pumpedupwater:finite_waterlogging_excluded` | empty | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`. |
+| `pumpedupwater:finite_water_extinguishable` | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level. |
 
 Adjacent extended-path blocks ignore the destination entry barrier when it is equal to or lower than
 the source-side exit height, including slab-to-stair transitions, while fully closed faces still block flow. Bottom slabs and
