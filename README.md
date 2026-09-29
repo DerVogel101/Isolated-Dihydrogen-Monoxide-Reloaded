@@ -13,8 +13,11 @@ version of the mod at a time. Existing config files remain under `config/immersi
 be copied to `config/pumpedupwater` if you want to retain those settings.
 
 ```powershell
-.\gradlew.bat -g .gradle\codex-gradle-9.6.0 build --no-daemon
+.\gradlew.bat build --no-daemon
 ```
+
+## Docs
+The surely complete [Feature List](./docs/FEATURES.md) can be found in the [Docs](./docs) folder
 
 ## Fluid compatibility
 
@@ -67,7 +70,7 @@ Frozen waterlogged blocks have solid ice collision and vanilla ice slipperiness,
 Breaking the ice thaws the host without harvesting it or dropping its contents, including with Silk Touch.
 Strong block light (above 11) also thaws it; the stored finite-water amount is restored.
 Vanilla water and vanilla-waterlogged blocks retain their existing behavior.
-The isolated regression is `./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PiceTest runServer --args="--nogui" --no-daemon`.
+The isolated regression is `./gradlew.bat -PiceTest runServer --args="--nogui" --no-daemon`.
 
 Manual client check: freeze a chest containing items, a potted plant, and a slab in an enclosed,
 outdoor finite-water basin in a cold biome. Check the ice overlay/collision, blocked chest access
@@ -114,7 +117,7 @@ The chance follows each crop's normal growth probability, including soil conditi
 beetroot/torchflower ticks. Dry crops, levels 3-8, and vanilla fluids receive no bonus.
 
 The isolated dedicated-server regression is available with
-`./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PcropTest runServer --args="--nogui" --no-daemon`
+`./gradlew.bat -PcropTest runServer --args="--nogui" --no-daemon`
 (server directory: `build/crop-test-server`, with its own EULA/server settings).
 
 Waterlogging selection is read from its own `config/pumpedupwater/waterlogging.toml` before block states are
@@ -157,19 +160,19 @@ on both client and server; server config synchronization happens too late to cha
 Removing support from blocks in an existing world can discard their stored finite water/frozen state.
 
 Run the isolated startup/state-count regression with
-`./gradlew.bat -g .gradle/codex-gradle-9.6.0 -PearlyRulesTest runServer --args="--nogui" --offline`.
+`./gradlew.bat -PearlyRulesTest runServer --args="--nogui" --offline`.
 It creates its own config and world under `build/early-rules-test-server`. Use
 `-PearlyRulesTest=defaults` instead to verify first-launch defaults and config creation.
 
 Datapacks can replace or extend these block tags:
 
-| Tag | Default membership | Purpose |
-| --- | --- | --- |
-| `pumpedupwater:extended_drain_path` | Empty; additive to the TOML list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
-| `pumpedupwater:ignores_own_shape_for_outflow` | Empty | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces. |
-| `pumpedupwater:water_pressure_openable_doors` | `#minecraft:wooden_doors` | Selects doors water may push open from outside to inside. |
-| `pumpedupwater:finite_waterlogging_excluded` | empty | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`. |
-| `pumpedupwater:finite_water_extinguishable` | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level. |
+| Tag                                           | Default membership               | Purpose                                                                                                                                                                  |
+|-----------------------------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `pumpedupwater:extended_drain_path`           | Empty; additive to the TOML list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
+| `pumpedupwater:ignores_own_shape_for_outflow` | Empty                            | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces.                                      |
+| `pumpedupwater:water_pressure_openable_doors` | `#minecraft:wooden_doors`        | Selects doors water may push open from outside to inside.                                                                                                                |
+| `pumpedupwater:finite_waterlogging_excluded`  | empty                            | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`.                                                                     |
+| `pumpedupwater:finite_water_extinguishable`   | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level.                                                                                                      |
 
 Adjacent extended-path blocks ignore the destination entry barrier when it is equal to or lower than
 the source-side exit height, including slab-to-stair transitions, while fully closed faces still block flow. Bottom slabs and
