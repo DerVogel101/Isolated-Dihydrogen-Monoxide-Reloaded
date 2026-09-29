@@ -1,183 +1,35 @@
 # Pumped Up Isolated Water
 
-This branch targets Minecraft/Fabric 26.3 and Java 25. Finite-water physics use the mod-owned
-`pumpedupwater:finite_water`; vanilla water and lava retain their normal behavior.
+Pumped Up Isolated Water adds the mod-owned `pumpedupwater:finite_water` fluid to Minecraft. It flows in measurable units, interacts with blocks and machinery, and stays independent of vanilla water and lava.
 
-This mod builds on [Dihydrogen Monoxide Reloaded](https://github.com/CoolMineman/Dihydrogen-Monoxide-Reloaded)
-and later work by SirWashington, Ewoudje, and Ruby. Their contributions remain credited in
-`fabric.mod.json`. The code is distributed under [LGPL-3.0](LICENSE).
+## Requirements
 
-The mod ID is now `pumpedupwater`. Saved blocks with `immersivefluids` IDs resolve to their new
-registry entries when loaded; keep a backup before opening an existing world. Install only one
-version of the mod at a time. Existing config files remain under `config/immersivefluids` and can
-be copied to `config/pumpedupwater` if you want to retain those settings.
+| Minecraft | Mod loader                    | Java        | Required library              |
+|-----------|-------------------------------|-------------|-------------------------------|
+| 26.3      | Fabric Loader 0.19.5 or newer | 25 or newer | Fabric API for Minecraft 26.3 |
 
-```powershell
-.\gradlew.bat build --no-daemon
-```
+The current build uses Fabric API 0.161.0+26.3. Install the mod on the client and server for multiplayer.
 
-## Docs
-The surely complete [Feature List](./docs/FEATURES.md) can be found in the [Docs](./docs) folder
+## Compatibility
 
-## Fluid compatibility
+- Vanilla water and lava keep their normal behavior and are never converted into finite water.
+- When finite water directly touches any other non-empty fluid, including fluids from other mods, the finite water disappears and the neighboring fluid remains.
+- The optional shader integration targets Iris 1.11.6 with Sodium 0.9.2 or 0.9.3-alpha.1 using Complementary Unbound. See the [shader compatibility guide](docs/shader-compatibility.md) for setup and details.
 
-Finite water disappears when it directly touches any other non-empty fluid, including fluids
-added by other mods. Only the finite water is removed; the neighboring fluid is left unchanged.
-Block-face and waterlogging barriers still determine whether two fluids can touch. Fluids in the
-standard `#minecraft:lava` tag also produce the extinguishing sound and smoke effect.
+## What the mod adds
 
-## Anti-rain generator
+- Isolated finite water with eight volume levels, precision buckets, waterlogging, flow interactions, and finite ice.
+- Water pumps and animated valves, plus water movement caused by piston pressure.
+- Rain collection and evaporation, a rain/water sensor, and an anti-rain generator.
+- Dripstone water collection and water-powered crop growth.
 
-While powered by redstone, `pumpedupwater:anti_rain_generator` prevents new finite-water rain
-collection in its own chunk and the eight surrounding chunks. It does not stop Minecraft weather
-or rain rendering, alter vanilla or modded fluids or precipitation mechanics, or disable existing
-finite-water drying and evaporation.
+## Documentation
 
-## Water valve
+- [Full feature list](docs/FEATURES.md)
+- [Configuration guide](docs/configuration.md)
+- [Water pump guide](docs/water-pump.md)
+- [Shader compatibility and setup](docs/shader-compatibility.md)
+- [Build and regression checks](docs/development.md)
+- [Planned changes](docs/future_changes.md)
 
-Place `pumpedupwater:water_valve` blocks facing the same direction in a 1x1, 2x2, or 3x3 square.
-All six directions are supported. Redstone at any member opens the whole valve; removing power closes it.
-A full transition takes 140 ticks: 60 to swing the leaves, 60 to extend the telescoping plates,
-and 20 to extend the short top/bottom bolts from their drive bases. Opening reverses this order.
-The water seal closes at the outlet face when the plates meet, before the final locking phase.
-Both faces have visible actuators and locking hardware; 3x3 leaves have three actuator rows. Open 2x2/3x3 valves admit a walking player;
-the 1x1 admits a crawling or swimming player.
-
-The shaped recipe yields two valves: iron blocks in the corners, iron doors at the top/bottom center,
-sticky pistons at the left/right center, and a waxed lightning rod in the center.
-Run `./gradlew.bat -PvalveTest runServer --args="--nogui" --no-daemon` for the isolated server regression.
-`valveGeometrySelfTest` also produces a headless preview in `build/valve-geometry-preview.png`.
-
-## Finite ice
-
-Finite water freezes outdoors in cold biomes during Minecraft's regular ice/snow checks,
-at block light below 10. Levels 1-7 become layered finite ice; level 8 becomes full finite ice.
-Layered ice can hold liquid finite water in its remaining space (ice + water <= 8).
-Further freezing converts the liquid into more ice, producing a full block at eight layers.
-Precision buckets retain any water that does not fit. Full buckets require room for overflow.
-
-In survival, full finite ice drops itself with Silk Touch; otherwise it releases eight finite-water
-units. Layered ice drops nothing, even with Silk Touch, and releases its frozen plus liquid units.
-Both variants melt back into their conserved water volume under block light above 11.
-Finite-waterlogged blocks freeze in place, keeping their block state and block entity (including inventories).
-Partially frozen hosts can hold more liquid finite water up to eight total units (ice + liquid).
-Snow layers share that space: three snow layers leave room for five water levels, and eight leave none.
-Water freezes above the snow, preserving its layer count; snow, ice, and liquid together never exceed eight levels.
-Snow stacking is rejected when it would overfill the block. Removing or melting wet snow retains its finite water.
-Buckets and natural flow can fill that remaining space; refreezing and thawing conserve both portions.
-The ice prevents use, hopper access, and normal ticking. Paired chests/doors/beds are locked together.
-Frozen waterlogged blocks have solid ice collision and vanilla ice slipperiness, including thin layers around plants.
-Breaking the ice thaws the host without harvesting it or dropping its contents, including with Silk Touch.
-Strong block light (above 11) also thaws it; the stored finite-water amount is restored.
-Vanilla water and vanilla-waterlogged blocks retain their existing behavior.
-The isolated regression is `./gradlew.bat -PiceTest runServer --args="--nogui" --no-daemon`.
-
-Manual client check: freeze a chest containing items, a potted plant, and a slab in an enclosed,
-outdoor finite-water basin in a cold biome. Check the ice overlay/collision, blocked chest access
-(including the other half of a double chest), then break or melt the ice with nearby glowstone.
-The original blocks and chest contents must remain, with no duplicated drops.
-Also top up partially frozen plants and layered ice: the ice should stay visible beneath the water,
-and the ice around offset plants should align with the block grid, not the plant's random offset.
-For snow, try three layers with five water levels, then freeze and break/thaw the ice: all three snow layers
-and five water levels should remain. Check that water and ice render above the snow, not through it.
-
-## Configuration
-
-### Shaders
-
-The optional client integration targets Iris 1.11.6 with Sodium 0.9.2 or 0.9.3-alpha.1 on Minecraft 26.3,
-with Complementary Unbound r5.9.3 and Euphoria Patches 1.10.5. Select **RP Support → Integrated PBR+**.
-No extra resource pack or shader-file edits are needed. Other Iris/Sodium versions or changed
-shader material sources log a warning; unverified Sodium versions disable only the Sodium renderer hooks.
-See [shader compatibility and validation](docs/shader-compatibility.md) for coverage and test commands.
-
-### Physics
-
-Global physics values are stored in `config/pumpedupwater/server.toml` and take effect after a
-server restart. They cover flow timing, normal and extended drain-search limits, extinguishing,
-door pressure, entity-current strength and speed limits, and piston pressure. Waterlogging rules
-are stored separately in `config/pumpedupwater/waterlogging.toml`.
-
-Hanging pointed dripstone supplied by exactly eight finite-water units above its support block
-produces one finite-water unit per successful drip, without consuming the source. Drips create
-puddles in air above the first obstruction or add to an existing partial puddle (up to eight).
-The vanilla drip-path limits apply; cauldrons and other fluids are not converted.
-`dripstone.enabled` disables this feature. `dripstone.fill_chance` controls the chance per random
-tick, defaulting to vanilla water-cauldron rarity (`0.17578125`); `0` stops accumulation.
-
-Farmland crops holding finite-water level **1 or 2** can gain one growth stage by consuming exactly
-one water level. This includes wheat, carrots, potatoes, beetroot, torchflowers, pitcher crops,
-and immature melon/pumpkin stems; mature stems do not produce bonus fruit. Normal growth is free.
-Normal light and growth-space requirements still apply, and blocked growth consumes no water.
-`crop_fertilization.enabled` toggles the feature. `crop_fertilization.growth_speed_increase`
-ranges from `0.0` to `1.0` and defaults to `0.5`: **50% more growth stages per unit time**, or
-about 33% less time to maturity, while levels 1-2 are continually maintained. Consumed or drained
-water must be replenished to maintain that average. Setting the increase to `0.0` disables bonuses.
-The chance follows each crop's normal growth probability, including soil conditions and slower
-beetroot/torchflower ticks. Dry crops, levels 3-8, and vanilla fluids receive no bonus.
-
-The isolated dedicated-server regression is available with
-`./gradlew.bat -PcropTest runServer --args="--nogui" --no-daemon`
-(server directory: `build/crop-test-server`, with its own EULA/server settings).
-
-Waterlogging selection is read from its own `config/pumpedupwater/waterlogging.toml` before block states are
-constructed. Exclusions prevent the extra water/frozen states and their initialization work.
-The separate inclusion list is applied afterward and wins over configured exclusions:
-
-```toml
-excluded_blocks = ["minecraft:barrier", "minecraft:beacon", "#minecraft:leaves", "#minecraft:shulker_boxes", "#minecraft:walls", "#c:glass_panes"]
-included_blocks = []
-debug = false
-debug_state_threshold = 6480
-```
-
-Both lists accept exact block IDs, `@modid` namespaces (not display names), `#namespace:tag`,
-and `*` matching zero or more characters. Inclusions only restore blocks the mod already supports;
-they do not bypass custom datapack entries in the runtime `finite_waterlogging_excluded` tag.
-Excluding blocks that never receive these states saves no additional state initialization.
-
-Set `debug = true` to log each block whose final state count is strictly greater than
-`debug_state_threshold` (default `6480`) when its state definition is created. Counts include
-all properties, including water/frozen states where added. Messages appear at INFO level in
-the console and `logs/latest.log`, with the block ID and count. Restart to apply these settings.
-
-The defaults above replace the former hardcoded exclusions. Remove a selector or add an inclusion
-such as `"minecraft:glass_pane"` to enable a previously excluded block. Add selectors such as
-`"@railways"`, `"#minecraft:dirt"`, `"railways:train_track_*"` or `"railways:*_track"` as needed.
-Modded variants must appear in these tags or match an explicit selector; class inheritance alone
-no longer excludes them. Missing files receive these defaults; explicit empty lists stay empty.
-Old config files are not migrated or read. The new waterlogging file uses root-level lists, without
-a `[waterlogging]` table. Edit both files directly and restart after changes.
-
-Tags are a startup snapshot of vanilla and installed mods' base resources, including nested tags.
-Resources merge in vanilla-first, then mod-ID order; `replace` clears preceding values.
-World datapacks, optional built-in packs and tags generated at runtime cannot affect this snapshot.
-Malformed rules and unavailable required tags stop startup with an error instead of silently
-changing which blocks receive states.
-
-**Fully restart the game/server after editing these lists.** Use identical lists and mod resources
-on both client and server; server config synchronization happens too late to change state definitions.
-Removing support from blocks in an existing world can discard their stored finite water/frozen state.
-
-Run the isolated startup/state-count regression with
-`./gradlew.bat -PearlyRulesTest runServer --args="--nogui" --offline`.
-It creates its own config and world under `build/early-rules-test-server`. Use
-`-PearlyRulesTest=defaults` instead to verify first-launch defaults and config creation.
-
-Datapacks can replace or extend these block tags:
-
-| Tag                                           | Default membership               | Purpose                                                                                                                                                                  |
-|-----------------------------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `pumpedupwater:extended_drain_path`           | Empty; additive to the TOML list | Adds blocks that may extend a drain search beyond `flow.puddle_search_radius`. `flow.extended_drain_path_blocks` defaults to `#minecraft:slabs` and `#minecraft:stairs`. |
-| `pumpedupwater:ignores_own_shape_for_outflow` | Empty                            | Completely ignores a tagged block's own horizontal outflow shape. Extended-path slabs and stairs instead retain fully closed faces.                                      |
-| `pumpedupwater:water_pressure_openable_doors` | `#minecraft:wooden_doors`        | Selects doors water may push open from outside to inside.                                                                                                                |
-| `pumpedupwater:finite_waterlogging_excluded`  | empty                            | Optional datapack restriction on finite-water storage; startup defaults live in `waterlogging.toml`.                                                                     |
-| `pumpedupwater:finite_water_extinguishable`   | campfires, candles, candle cakes | Selects lit, supported blocks extinguished at the configured level.                                                                                                      |
-
-Adjacent extended-path blocks ignore the destination entry barrier when it is equal to or lower than
-the source-side exit height, including slab-to-stair transitions, while fully closed faces still block flow. Bottom slabs and
-bottom-half stairs display stored levels `1-8` as
-`4, 4, 5, 5, 6, 6, 7, 8`; this affects appearance only, not finite-water volume.
-
-The maximum finite-water level remains fixed at eight because it is part of the saved block and
-fluid-state formats. Searches never cross unloaded chunks.
+This mod builds on [Dihydrogen Monoxide Reloaded](https://github.com/CoolMineman/Dihydrogen-Monoxide-Reloaded) and later work by SirWashington, Ewoudje, and Ruby. Contributors are credited in `fabric.mod.json`. The code is distributed under [LGPL-3.0](LICENSE).

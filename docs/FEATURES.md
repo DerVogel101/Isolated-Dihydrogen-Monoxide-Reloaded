@@ -1,7 +1,7 @@
 # Pumped Up Isolated Water — Current Features
 
 This document describes the current checkout of Pumped Up Isolated Water (`pumpedupwater`).
-It targets Minecraft 26.2 on Fabric and Java 25; the 26.3 port is still pending.
+It targets Minecraft 26.3 on Fabric Loader 0.19.5 or newer, Fabric API for 26.3, and Java 25 or newer.
 The Java package is `dervogel101.de.pumpedupwater`.
 
 Saved `immersivefluids` block, item, fluid, and block-entity IDs resolve to the
@@ -368,11 +368,7 @@ targets.
 
 ## Shader compatibility
 
-Optional client integration targets Iris 1.11.2 and Sodium 0.9.1 on Minecraft
-26.2. It supplies finite-water shader material handling, fog, and smooth
-lighting. The integration is version-gated; other Iris/Sodium versions use
-ordinary rendering. Manual finite-versus-vanilla visual parity remains to be
-checked in-game.
+The optional client integration targets Iris 1.11.6 with Sodium 0.9.2 or 0.9.3-alpha.1 on Minecraft 26.3. See the [shader compatibility guide](shader-compatibility.md) for setup and validation details.
 
 ## Server configuration and datapack tags
 
